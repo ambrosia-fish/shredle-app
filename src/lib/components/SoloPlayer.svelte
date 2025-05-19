@@ -1,188 +1,192 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { accessToken } from '$lib/stores/auth';
-  import { get } from 'svelte/store';
+  import { accessToken } from '$lib/services/spotifyAuth';
   
   // Props
   export let spotifyId: string = '';
   export let startTimeMs: number = 0;
-  export const endTimeMs: number = 0; // Changed to const as it's unused
   export let clipDurationMs: number = 3000;
-
+  
   // State
-  let player: any;
+  let player: any = null;
   let deviceId: string = '';
   let isPlaying: boolean = false;
   let isReady: boolean = false;
   let isLoading: boolean = true;
+  let isTrackLoaded: boolean = false;
   let error: string = '';
-  let rawToken: string = '';
+  let loadingMessage: string = 'Initializing player...';
+  let loadingProgress: number = 0;
+  
+  // Track load timeout
+  let loadTimeout: any = null;
   
   onMount(() => {
-    console.log('SoloPlayer mounted, waiting for SDK...');
+    // Load Spotify Web Player SDK
+    loadSpotifySDK();
     
-    // Get the token directly from localStorage to avoid any potential store issues
-    rawToken = localStorage.getItem('spotify_access_token') || '';
-    console.log('Raw token from localStorage:', rawToken ? 'Present' : 'Missing');
-    
-    if (!rawToken) {
-      error = 'No access token found in localStorage. Please log in again.';
-      isLoading = false;
-      return;
-    }
-    
-    // Fix: Add a small delay to ensure the SDK is fully loaded
-    setTimeout(() => {
-      // Check if window.Spotify is defined
-      if (window.Spotify) {
-        console.log('Spotify SDK already loaded');
-        initializePlayer();
-      } else if (window.SpotifyPlayerSDKReady) {
-        console.log('Spotify SDK ready flag is set');
-        initializePlayer();
-      } else {
-        console.log('Setting up onSpotifyWebPlaybackSDKReady callback');
-        // Set up the callback for when the SDK loads
-        window.onSpotifyWebPlaybackSDKReady = () => {
-          console.log('onSpotifyWebPlaybackSDKReady called');
-          window.SpotifyPlayerSDKReady = true;
-          initializePlayer();
-        };
-      }
-    }, 1000); // 1 second delay
+    // Set up loading animation
+    startLoadingAnimation();
   });
   
   onDestroy(() => {
     if (player) {
-      console.log('Disconnecting Spotify player');
       player.disconnect();
+    }
+    
+    // Clear any timeouts
+    if (loadTimeout) {
+      clearTimeout(loadTimeout);
     }
   });
   
-  function initializePlayer() {
-    try {
-      console.log('Initializing Spotify player...');
-      
-      // Make sure we're not using a quoted token
-      if (rawToken.startsWith('"') && rawToken.endsWith('"')) {
-        rawToken = rawToken.slice(1, -1);
-        console.log('Removed quotes from token');
+  function startLoadingAnimation() {
+    // Simulate loading progress
+    const interval = setInterval(() => {
+      if (loadingProgress < 95 && isLoading) {
+        // Slow down as we approach 95%
+        const increment = loadingProgress < 50 ? 5 : (loadingProgress < 80 ? 2 : 1);
+        loadingProgress += increment;
+      } else if (isTrackLoaded) {
+        loadingProgress = 100;
+        clearInterval(interval);
       }
+    }, 100);
+    
+    // Clean up interval on destroy
+    onDestroy(() => {
+      clearInterval(interval);
+    });
+  }
+  
+  function loadSpotifySDK() {
+    // Check if SDK is already loaded
+    if (window.Spotify && window.Spotify.Player) {
+      initPlayer();
+      return;
+    }
+    
+    // Load the SDK script
+    const script = document.createElement('script');
+    script.src = 'https://sdk.scdn.co/spotify-player.js';
+    script.async = true;
+    
+    script.onerror = () => {
+      error = 'Failed to load Spotify Web Player SDK';
+      isLoading = false;
+    };
+    
+    document.body.appendChild(script);
+    
+    // Set up SDK ready callback
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      initPlayer();
+    };
+  }
+  
+  function initPlayer() {
+    try {
+      // Get token from store
+      const token = $accessToken;
       
-      console.log('Access token available:', !!rawToken);
-      
-      if (!rawToken) {
-        error = 'No access token available. Please log in again.';
+      if (!token) {
+        error = 'No access token available';
         isLoading = false;
         return;
       }
       
-      // Create a fresh object for the player config
-      const playerConfig = {
+      loadingMessage = 'Connecting to Spotify...';
+      
+      // Create hidden player instance
+      player = new Spotify.Player({
         name: 'Guitar Solo Guesser',
-        getOAuthToken: (cb: (token: string) => void) => {
-          console.log('Token callback requested by SDK');
-          // Pass the raw token directly
-          cb(rawToken);
-        }
-      };
-      
-      console.log('Creating player with config:', JSON.stringify(playerConfig, (k, v) => k === 'getOAuthToken' ? '(function)' : v));
-      
-      // Fix: Make sure token is passed correctly without quotes
-      player = new window.Spotify.Player(playerConfig);
+        getOAuthToken: cb => cb(token),
+        volume: 0.8
+      });
       
       // Error handling
-      player.addListener('initialization_error', ({ message }: { message: string }) => {
-        console.error('Initialization error:', message);
-        error = `Initialization error: ${message}`;
+      player.addListener('initialization_error', ({ message }) => {
+        error = `Player initialization error: ${message}`;
         isLoading = false;
       });
       
-      player.addListener('authentication_error', ({ message }: { message: string }) => {
-        console.error('Authentication error:', message);
+      player.addListener('authentication_error', ({ message }) => {
         error = `Authentication error: ${message}`;
         isLoading = false;
       });
       
-      player.addListener('account_error', ({ message }: { message: string }) => {
-        console.error('Account error (Premium required):', message);
-        error = `Account error: ${message}. Premium subscription is required.`;
+      player.addListener('account_error', ({ message }) => {
+        error = `Premium account required: ${message}`;
         isLoading = false;
       });
       
-      player.addListener('playback_error', ({ message }: { message: string }) => {
-        console.error('Playback error:', message);
+      player.addListener('playback_error', ({ message }) => {
         error = `Playback error: ${message}`;
       });
       
-      // Playback status updates
-      player.addListener('player_state_changed', (state: any) => {
-        console.log('Player state changed:', state ? 'State available' : 'No state');
+      // State change handler
+      player.addListener('player_state_changed', state => {
         if (state) {
           isPlaying = !state.paused;
           
-          // Auto-stop after duration
-          if (isPlaying && clipDurationMs > 0) {
-            console.log(`Setting auto-pause after ${clipDurationMs}ms`);
-            setTimeout(() => {
-              pauseSolo();
-            }, clipDurationMs);
+          // When we get a player state change, it means the track has loaded
+          if (!isTrackLoaded) {
+            isTrackLoaded = true;
+            loadingProgress = 100;
+            isLoading = false;
           }
         }
       });
       
-      // Ready
-      player.addListener('ready', ({ device_id }: { device_id: string }) => {
-        console.log('Spotify player ready with Device ID:', device_id);
+      // When player is ready
+      player.addListener('ready', ({ device_id }) => {
+        console.log('Player ready with device ID:', device_id);
         deviceId = device_id;
         isReady = true;
-        isLoading = false;
         
-        // Pre-load the track
+        // Only preload if we have a track ID
         if (spotifyId) {
-          console.log('Preloading track:', spotifyId);
+          loadingMessage = 'Loading song...';
           preloadTrack();
-        }
-      });
-      
-      player.addListener('not_ready', ({ device_id }: { device_id: string }) => {
-        console.log('Device has gone offline:', device_id);
-        isReady = false;
-      });
-      
-      // Connect to the player
-      console.log('Connecting to Spotify player...');
-      player.connect().then((success: boolean) => {
-        if (success) {
-          console.log('Connected to Spotify successfully');
+          
+          // Set a timeout for loading in case player_state_changed is never fired
+          loadTimeout = setTimeout(() => {
+            if (isLoading) {
+              // Force loading to complete after 5 seconds as a fallback
+              isTrackLoaded = true;
+              loadingProgress = 100;
+              isLoading = false;
+            }
+          }, 5000);
         } else {
-          console.error('Failed to connect to Spotify');
-          error = 'Failed to connect to Spotify';
           isLoading = false;
         }
-      }).catch((e: any) => {
-        console.error('Error connecting to Spotify:', e);
-        error = `Connection error: ${e.message || 'Unknown error'}`;
-        isLoading = false;
       });
+      
+      // Connect the player
+      player.connect()
+        .then(success => {
+          if (!success) {
+            error = 'Failed to connect to Spotify';
+            isLoading = false;
+          }
+        })
+        .catch(err => {
+          error = `Connection error: ${err.message}`;
+          isLoading = false;
+        });
+        
     } catch (err) {
-      console.error('Error initializing player:', err);
-      error = `Error initializing player: ${err.message}`;
+      error = `Player initialization failed: ${err.message}`;
       isLoading = false;
     }
   }
   
   async function preloadTrack() {
-    if (!isReady || !deviceId || !spotifyId) {
-      console.warn('Cannot preload track: player not ready, no device ID, or no track ID');
-      return;
-    }
+    if (!isReady || !deviceId || !spotifyId) return;
     
     try {
-      console.log(`Preloading track ${spotifyId} at position ${startTimeMs}ms`);
-      
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({
           uris: [`spotify:track:${spotifyId}`],
@@ -190,38 +194,43 @@
         }),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${rawToken}`
+          'Authorization': `Bearer ${$accessToken}`
         }
       });
       
-      if (!response.ok) {
-        const responseData = await response.text();
-        console.error('Error response from Spotify API:', response.status, responseData);
-        throw new Error(`API returned ${response.status}: ${responseData}`);
-      }
-      
-      console.log('Track loaded successfully, pausing in 100ms');
       // Immediately pause after loading
       setTimeout(() => {
         player.pause();
       }, 100);
       
-    } catch (error) {
-      console.error('Error preloading track:', error);
-      this.error = `Error preloading track: ${error.message}`;
+    } catch (err) {
+      console.error('Error preloading track:', err);
+      
+      // Still allow playback attempt even if preload fails
+      isTrackLoaded = true;
+      loadingProgress = 100;
+      isLoading = false;
     }
   }
   
+  // Custom player controls
   async function playSolo() {
-    if (!isReady || !deviceId || !spotifyId) {
-      console.warn('Cannot play: player not ready, no device ID, or no track ID');
-      return;
-    }
+    if (!isReady || !deviceId || !spotifyId) return;
     
     try {
-      console.log(`Playing track ${spotifyId} from position ${startTimeMs}ms`);
+      // If we're already playing, reset to start position
+      if (isPlaying) {
+        await fetch(`https://api.spotify.com/v1/me/player/seek?device_id=${deviceId}&position_ms=${startTimeMs}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${$accessToken}`
+          }
+        });
+        return;
+      }
       
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+      // Start playback
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({
           uris: [`spotify:track:${spotifyId}`],
@@ -229,69 +238,86 @@
         }),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${rawToken}`
+          'Authorization': `Bearer ${$accessToken}`
         }
       });
       
-      if (!response.ok) {
-        const responseData = await response.text();
-        console.error('Error response from play API:', response.status, responseData);
-        throw new Error(`API returned ${response.status}: ${responseData}`);
-      }
-      
-      console.log('Track playing');
       isPlaying = true;
       
-    } catch (error) {
-      console.error('Error playing track:', error);
-      this.error = `Error playing track: ${error.message}`;
+      // Set timer to pause after clip duration
+      setTimeout(() => {
+        if (isPlaying) {
+          pauseSolo();
+        }
+      }, clipDurationMs);
+      
+    } catch (err) {
+      error = `Playback error: ${err.message}`;
     }
   }
   
   function pauseSolo() {
-    if (player) {
-      console.log('Pausing playback');
+    if (player && isPlaying) {
       player.pause();
       isPlaying = false;
     }
   }
   
-  // Update when props change
-  $: if (spotifyId && isReady && !isLoading) {
-    console.log('Track ID changed, preloading new track');
-    preloadTrack();
-  }
-  
-  // Format time (for display)
-  function formatTime(ms: number): string {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  function restartSolo() {
+    pauseSolo();
+    setTimeout(() => {
+      playSolo();
+    }, 100);
   }
 </script>
 
 <div class="player-container">
   {#if isLoading}
-    <div class="loading">Loading player...</div>
+    <div class="loading-container">
+      <div class="loading-text">{loadingMessage}</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" style="width: {loadingProgress}%"></div>
+      </div>
+    </div>
   {:else if error}
     <div class="error">
       <p>{error}</p>
       <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {:else if isReady}
-    <button class="play-button" on:click={isPlaying ? pauseSolo : playSolo}>
-      {isPlaying ? 'Pause' : 'Play Solo'}
-    </button>
-    
-    <div class="info">
-      <div class="clip-info">
-        {clipDurationMs / 1000}s clip
-      </div>
+    <div class="controls">
+      <button 
+        class="play-button" 
+        on:click={isPlaying ? pauseSolo : playSolo}
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+      >
+        {#if isPlaying}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+             <rect x="6" y="4" width="4" height="16" />
+             <rect x="14" y="4" width="4" height="16" />
+          </svg>
+        {:else}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+             <polygon points="5,3 19,12 5,21" />
+          </svg>
+        {/if}
+      </button>
+      
+      <button 
+        class="restart-button" 
+        on:click={restartSolo}
+        aria-label="Restart"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M12,18c-3.31,0-6-2.69-6-6c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4V18z" />
+        </svg>
+      </button>
     </div>
+    
+    <div class="info">{clipDurationMs / 1000}s clip</div>
   {:else}
     <div class="error">
-      <p>Unable to initialize Spotify player. Please make sure you have a Premium account.</p>
+      <p>Unable to initialize player. Please make sure you have a Spotify Premium account.</p>
       <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {/if}
@@ -303,16 +329,35 @@
     text-align: center;
   }
   
-  .play-button {
-    background: var(--primary-color);
-    color: white;
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .play-button, .restart-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     border: none;
-    padding: 12px 24px;
-    border-radius: 50px;
-    font-weight: bold;
+    border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 1.2rem;
+  }
+  
+  .play-button {
+    background: #1DB954; /* Spotify green */
+    color: white;
+    width: 64px;
+    height: 64px;
+  }
+  
+  .restart-button {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    width: 40px;
+    height: 40px;
   }
   
   .play-button:hover {
@@ -320,11 +365,40 @@
     transform: scale(1.05);
   }
   
-  .loading, .error {
+  .restart-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+  
+  .loading-container, .error {
     padding: 1rem;
     border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.1);
     margin: 1rem 0;
+  }
+  
+  .loading-container {
+    background-color: rgba(255, 255, 255, 0.1);
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  .loading-text {
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+  }
+  
+  .progress-bar-container {
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  
+  .progress-bar {
+    height: 100%;
+    background-color: #1DB954; /* Spotify green */
+    transition: width 0.3s ease;
   }
   
   .error {
@@ -335,6 +409,6 @@
   .info {
     margin-top: 1rem;
     font-size: 0.9rem;
-    color: var(--secondary-color);
+    color: #999;
   }
 </style>

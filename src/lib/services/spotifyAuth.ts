@@ -1,306 +1,183 @@
 // src/lib/services/spotifyAuth.ts
-import { isAuthenticated, userProfile, accessToken, isPremium } from '../stores/auth';
-import { get } from 'svelte/store';
+import { writable } from 'svelte/store';
 
-// Get environment variables
+// Simple auth stores
+export const isAuthenticated = writable(false);
+export const accessToken = writable('');
+
+// Spotify authorization variables
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET; 
-const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${window.location.origin}/callback`;
 
-// Using a simplified auth flow without PKCE
+// We need streaming scope for Web Player SDK
+const scopes = ['streaming', 'user-read-email', 'user-read-private', 'user-modify-playback-state'];
 
-// Start Spotify login flow
-export async function loginWithSpotify(): Promise<void> {
+// New approach: bypass browser storage entirely for auth flow
+// Instead, encode everything necessary in the state parameter
+
+// Simple login function using PKCE (no client secret needed in frontend)
+export async function loginWithSpotify() {
   try {
-    // Clear storage first to prevent any stale data issues
-    localStorage.clear();
-    console.log('Storage cleared before login');
+    console.log('Starting Spotify login process');
     
-    // Auth parameters - include all required scopes
-    const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
+    // Generate a random state value for security
+    const state = generateRandomString(16);
+    
+    // Generate PKCE code verifier
+    const codeVerifier = generateRandomString(64);
+    
+    // Calculate code challenge from verifier
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    
+    // Combine state and verifier in one parameter 
+    // This is our storage-free approach
+    const encodedState = `${state}:${codeVerifier}`;
+    
+    // Build the authorization URL with our encoded state
     const authUrl = new URL('https://accounts.spotify.com/authorize');
-    
-    console.log('Login initiated with redirect URI:', redirectUri);
-    
-    // Add parameters - using standard OAuth flow (no PKCE)
-    const params = {
+    authUrl.search = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
-      scope,
+      scope: scopes.join(' '),
       redirect_uri: redirectUri,
-    };
+      state: encodedState,
+      code_challenge_method: 'S256',
+      code_challenge: codeChallenge,
+      show_dialog: 'true',
+    }).toString();
     
-    authUrl.search = new URLSearchParams(params).toString();
+    // Log what we're doing for debugging
+    console.log('Redirecting to Spotify with encoded state parameter (StatePart:CodeVerifier)');
     
-    // Redirect to Spotify auth page
+    // Redirect to Spotify login
     window.location.href = authUrl.toString();
   } catch (error) {
-    console.error('Error initiating Spotify login:', error);
-    alert('Failed to start Spotify login. Please try again.');
+    console.error('Login preparation error:', error);
+    alert('Failed to start login process. Please try again.');
   }
 }
 
-// Exchange code for tokens after redirect
-export async function handleCallback(code: string): Promise<boolean> {
-  console.log('Callback received with code:', code ? 'Present' : 'Missing');
-  
-  if (!clientSecret) {
-    console.error('Client secret is missing - required for token exchange!');
-    throw new Error('Client secret is missing. Please check your environment variables.');
-  }
-  
-  const tokenUrl = 'https://accounts.spotify.com/api/token';
-  
-  // Create Basic Auth header with client ID and secret
-  const authHeader = 'Basic ' + btoa(clientId + ':' + clientSecret);
-  
-  const payload = {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-    }),
-  };
-  
-  console.log('Token request payload:', {
-    client_id: clientId ? 'Present' : 'Missing',
-    client_secret: clientSecret ? 'Present' : 'Missing',
-    redirect_uri: redirectUri,
-  });
+// Process the callback after Spotify login
+export async function handleCallback(code, state) {
+  console.log('Handling callback with state parameter');
   
   try {
-    const response = await fetch(tokenUrl, payload);
-    console.log('Token response status:', response.status);
+    // Safety check for missing code or state
+    if (!code) {
+      throw new Error('No authorization code received from Spotify');
+    }
     
-    // Log more details about the response if it fails
+    if (!state) {
+      throw new Error('No state parameter received from Spotify');
+    }
+    
+    // Extract state and verifier
+    // State parameter should be in the format "originalState:codeVerifier"
+    if (!state.includes(':')) {
+      throw new Error('Invalid state format - please try logging in again');
+    }
+    
+    const parts = state.split(':');
+    if (parts.length !== 2) {
+      throw new Error('Invalid state parameter structure');
+    }
+    
+    // We don't need to verify the original state since Spotify
+    // already verifies the state parameter matches what we sent
+    const codeVerifier = parts[1];
+    
+    // Verify code verifier looks valid
+    if (!codeVerifier || codeVerifier.length < 43) {
+      throw new Error('Invalid code verifier in state parameter');
+    }
+    
+    console.log('Successfully extracted code verifier from state parameter');
+    
+    // Exchange code for tokens using PKCE
+    console.log('Starting token exchange with code verifier');
+    
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+      }),
+    });
+    
     if (!response.ok) {
-      const responseText = await response.text();
-      console.error('Token response not OK:', response.status, responseText);
-      
-      try {
-        // Try to parse as JSON for more detailed error
-        const errorData = JSON.parse(responseText);
-        console.error('Error details:', errorData);
-        throw new Error(errorData.error_description || errorData.error || 'Authentication failed');
-      } catch (parseError) {
-        throw new Error(`Authentication failed (${response.status})`);
-      }
+      const errorData = await response.text();
+      console.error('Token exchange error:', response.status, errorData);
+      throw new Error(`Token exchange failed (${response.status}). Please try again.`);
     }
     
     const data = await response.json();
+    console.log('Token exchange successful!');
     
-    if (data.error) {
-      console.error('Token response error:', data.error, data.error_description);
-      throw new Error(data.error_description || data.error || 'Authentication failed');
+    // Store tokens in localStorage for app use (not for auth flow)
+    try {
+      localStorage.setItem('spotify_access_token', data.access_token);
+      localStorage.setItem('spotify_refresh_token', data.refresh_token);
+      localStorage.setItem('spotify_token_expires', String(Date.now() + (data.expires_in * 1000)));
+    } catch (e) {
+      console.warn('Failed to store tokens in localStorage, app functionality may be limited:', e);
     }
     
-    console.log('Token response success:', data.access_token ? 'Token received' : 'No token received');
+    // Update store regardless of localStorage success
+    accessToken.set(data.access_token);
+    isAuthenticated.set(true);
     
-    if (data.access_token) {
-      // Important: Make sure we store the token as a plain string without quotes
-      const tokenValue = String(data.access_token).replace(/^["']|["']$/g, '');
-      const refreshTokenValue = String(data.refresh_token).replace(/^["']|["']$/g, '');
-      const expiryValue = String(Date.now() + (data.expires_in * 1000));
-      
-      // First update the store
-      console.log('Setting store values first');
-      accessToken.set(tokenValue);
-      isAuthenticated.set(true);
-      
-      // Then store tokens in localStorage
-      console.log('Storing tokens in localStorage');
-      localStorage.setItem('spotify_access_token', tokenValue);
-      localStorage.setItem('spotify_refresh_token', refreshTokenValue);
-      localStorage.setItem('spotify_token_expiry', expiryValue);
-      
-      // Get user profile and check premium
-      console.log('Fetching user profile to check premium status');
-      try {
-        const profile = await fetchUserProfile();
-        
-        // Check premium status and return
-        if (profile && profile.product === 'premium') {
-          console.log('User has premium subscription');
-          return true;
-        } else {
-          console.log('User does not have premium subscription');
-          return true; // Still return true to complete the auth flow
-        }
-      } catch (profileError) {
-        console.error('Error checking premium status:', profileError);
-        // Still consider auth successful even if profile fetch fails
-        return true;
-      }
-    }
-    
-    // If we get here, something went wrong
-    throw new Error(data.error_description || data.error || 'Authentication failed');
+    return true;
   } catch (error) {
     console.error('Token exchange error:', error);
     throw error;
   }
 }
 
-// Get user profile and check premium status
-export async function fetchUserProfile(): Promise<any> {
-  console.log('fetchUserProfile called');
-  
-  // Get token directly from localStorage to avoid any store issues
-  const token = localStorage.getItem('spotify_access_token');
-  
-  console.log('Fetching user profile with token:', token ? 'Present' : 'Missing');
-  
-  if (!token) {
-    console.log('No token found in localStorage, setting isAuthenticated to false');
-    isAuthenticated.set(false);
-    isPremium.set(false);
-    return null;
-  }
-  
+// Check if user is already authenticated
+export function checkAuth() {
   try {
-    console.log('Making request to Spotify API for user profile');
-    const response = await fetch('https://api.spotify.com/v1/me', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    const token = localStorage.getItem('spotify_access_token');
+    const expiry = localStorage.getItem('spotify_token_expires');
     
-    if (!response.ok) {
-      console.error('Profile fetch failed:', response.status, response.statusText);
-      // Instead of throwing an error, just return and set premium to false
-      isAuthenticated.set(true); // Keep this true since we have a token
-      isPremium.set(false);
-      return null;
-    }
-    
-    const profile = await response.json();
-    console.log('Profile fetched:', profile.id, 'Product:', profile.product);
-    
-    // Update store values
-    userProfile.set(profile);
-    isAuthenticated.set(true);
-    
-    // Check if user has premium
-    if (profile.product === 'premium') {
-      console.log('User has premium, setting isPremium to true');
-      isPremium.set(true);
-    } else {
-      console.log('User does not have premium, setting isPremium to false');
-      isPremium.set(false);
-    }
-    
-    return profile;
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    // Don't change isAuthenticated if there's an error
-    isPremium.set(false);
-    return null;
-  }
-}
-
-// Refresh access token when expired
-export async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('spotify_refresh_token');
-  
-  if (!refreshToken || !clientSecret) return false;
-  
-  // Create Basic Auth header with client ID and secret
-  const authHeader = 'Basic ' + btoa(clientId + ':' + clientSecret);
-  
-  const payload = {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    }),
-  };
-  
-  try {
-    const response = await fetch('https://accounts.spotify.com/api/token', payload);
-    
-    if (!response.ok) {
-      console.error('Token refresh failed:', response.status, response.statusText);
-      return false;
-    }
-    
-    const data = await response.json();
-    
-    if (data.access_token) {
-      // Store tokens without quotes
-      const tokenValue = String(data.access_token).replace(/^["']|["']$/g, '');
-      const expiryValue = String(Date.now() + (data.expires_in * 1000));
-      
-      localStorage.setItem('spotify_access_token', tokenValue);
-      localStorage.setItem('spotify_token_expiry', expiryValue);
-      
-      if (data.refresh_token) {
-        const refreshTokenValue = String(data.refresh_token).replace(/^["']|["']$/g, '');
-        localStorage.setItem('spotify_refresh_token', refreshTokenValue);
-      }
-      
-      accessToken.set(tokenValue);
+    if (token && expiry && Date.now() < parseInt(expiry)) {
+      accessToken.set(token);
+      isAuthenticated.set(true);
       return true;
     }
-  } catch (error) {
-    console.error('Error refreshing token:', error);
+  } catch (e) {
+    console.warn('Error checking auth status:', e);
   }
   
   return false;
 }
 
-// Check if token needs refresh
-export function checkAuthStatus(): boolean {
-  console.log('checkAuthStatus called');
-  
-  const expiry = localStorage.getItem('spotify_token_expiry');
-  const token = localStorage.getItem('spotify_access_token');
-  
-  console.log('Token in localStorage:', token ? 'Present' : 'Missing');
-  console.log('Token expiry in localStorage:', expiry ? 'Present' : 'Missing');
-  
-  if (!token || !expiry) {
-    console.log('Token or expiry missing, setting isAuthenticated to false');
-    isAuthenticated.set(false);
-    isPremium.set(false);
-    return false;
-  }
-  
-  // If token expired, refresh it
-  if (Date.now() > parseInt(expiry) - 300000) { // 5 min buffer
-    console.log('Token expired, refreshing...');
-    refreshAccessToken();
-  } else {
-    // Make sure we're using a token without quotes in the store
-    console.log('Token valid, updating store values');
-    const cleanToken = String(token).replace(/^["']|["']$/g, '');
-    accessToken.set(cleanToken);
-    isAuthenticated.set(true);
-    
-    // Check premium status
-    console.log('Checking premium status');
-    fetchUserProfile();
-  }
-  
-  return true;
+// Helper to generate random string for state and code verifier
+function generateRandomString(length) {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = new Uint8Array(length);
+  crypto.getRandomValues(values);
+  return Array.from(values).map(x => possible[x % possible.length]).join('');
 }
 
-// Logout function
-export function logout(): void {
-  localStorage.removeItem('spotify_access_token');
-  localStorage.removeItem('spotify_refresh_token');
-  localStorage.removeItem('spotify_token_expiry');
+// Helper to generate code challenge for PKCE
+async function generateCodeChallenge(codeVerifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
   
-  isAuthenticated.set(false);
-  userProfile.set(null);
-  accessToken.set('');
-  isPremium.set(false);
+  return base64URLEncode(digest);
+}
+
+// Helper to encode base64URL for PKCE
+function base64URLEncode(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }

@@ -1,135 +1,94 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import { handleCallback } from '$lib/services/spotifyAuth';
-  import { isPremium } from '$lib/stores/auth';
-  import DebugInfo from '$lib/components/DebugInfo.svelte';
   
-  let errorMessage = '';
-  let loading = true;
+  let isLoading = true;
+  let error = '';
   let detailedError = '';
-  let debugInfo = '';
   
   onMount(async () => {
     try {
       const url = new URL(window.location.href);
       const code = url.searchParams.get('code');
-      const error = url.searchParams.get('error');
+      const state = url.searchParams.get('state');
+      const spotifyError = url.searchParams.get('error');
       
-      debugInfo += `Callback page loaded with: code=${code ? 'Present' : 'Missing'}, error=${error || 'None'}\n`;
-      console.log('Callback page loaded with:', {
-        code: code ? 'Present' : 'Missing',
-        error: error || 'None'
+      // Log parameters for debugging
+      console.log('Callback parameters received:', { 
+        code: code ? 'Present' : 'Missing', 
+        state: state ? `Present (${state.length} chars)` : 'Missing',
+        error: spotifyError || 'None' 
       });
       
-      if (error) {
-        errorMessage = `Authentication error: ${error}`;
-        detailedError = 'Spotify returned an error during the authorization process.';
-        loading = false;
-        debugInfo += `Error from Spotify: ${error}\n`;
-        return;
+      // Check for error parameter from Spotify
+      if (spotifyError) {
+        throw new Error(`Spotify error: ${spotifyError}`);
       }
       
+      // Verify code is present
       if (!code) {
-        errorMessage = 'No authentication code received from Spotify.';
-        detailedError = 'The authorization code is missing from the callback URL.';
-        loading = false;
-        debugInfo += 'No code in URL\n';
-        return;
+        throw new Error('No authorization code received from Spotify');
       }
       
-      try {
-        debugInfo += 'Attempting to handle callback with code...\n';
-        console.log('Attempting to handle callback with code...');
-        
-        const success = await handleCallback(code);
-        debugInfo += `handleCallback result: ${success}\n`;
-        
-        if (success) {
-          debugInfo += `Callback handled successfully, isPremium: ${$isPremium}\n`;
-          console.log('Callback handled successfully, isPremium:', $isPremium);
-          
-          // Add a short delay to ensure stores are updated
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Check premium status again after delay
-          debugInfo += `After delay, isPremium: ${$isPremium}\n`;
-          
-          // Use window.location instead of goto to force a full page reload
-          if ($isPremium) {
-            debugInfo += 'Redirecting to /game\n';
-            // Force a full page reload instead of client-side navigation
-            window.location.href = '/game';
-          } else {
-            debugInfo += 'Redirecting to / (home) due to no premium\n';
-            window.location.href = '/';
-          }
-        } else {
-          errorMessage = 'Failed to authenticate with Spotify.';
-          detailedError = 'Authentication was unsuccessful. Please try again.';
-          debugInfo += 'Authentication failed (success=false)\n';
-        }
-      } catch (err) {
-        console.error('Error in callback handler:', err);
-        errorMessage = err.message || 'An error occurred during authentication.';
-        debugInfo += `Error in callback: ${err.message}\n`;
-        
-        if (err.message.includes('code_verifier')) {
-          detailedError = 'Authentication session expired or was invalid. Please clear your browser storage and try logging in again.';
-        } else {
-          detailedError = 'There was a problem processing your login. Please try again.';
-        }
+      // Verify state is present
+      if (!state) {
+        throw new Error('No state parameter received from Spotify');
       }
+      
+      // Process the callback - will throw error if state format is invalid
+      await handleCallback(code, state);
+      
+      // Redirect to game page on success
+      window.location.href = '/game';
+      
     } catch (err) {
-      console.error('Unexpected error in callback page:', err);
-      errorMessage = 'An unexpected error occurred';
-      detailedError = err.message || 'Unknown error';
-      debugInfo += `Unexpected error: ${err.message}\n`;
-    } finally {
-      loading = false;
+      console.error('Callback error:', err);
+      error = err.message || 'Authentication failed';
+      
+      // Provide more helpful error messages
+      if (error.includes('state')) {
+        detailedError = 'There was a problem with the authentication process. This can happen if you refresh the page during login or if your browser blocks certain features.';
+      } else if (error.includes('Token exchange failed')) {
+        detailedError = 'There was a problem communicating with Spotify. Please try again in a moment.';
+      } else {
+        detailedError = 'Please try logging in again. If the problem persists, try using a different browser.';
+      }
+      
+      isLoading = false;
     }
   });
   
-  function clearStorageAndRetry() {
-    localStorage.clear();
-    sessionStorage.clear();
+  function tryAgain() {
+    // Simple redirect to home, no storage clearing needed with new approach
     window.location.href = '/';
   }
 </script>
 
 <div class="callback-container">
-  {#if loading}
+  {#if isLoading}
     <div class="loading">
-      <h2>Logging you in...</h2>
+      <h2>Logging in...</h2>
+      <div class="spinner"></div>
       <p>Completing authentication with Spotify</p>
     </div>
-  {:else if errorMessage}
+  {:else if error}
     <div class="error">
       <h2>Authentication Error</h2>
-      <p class="error-main">{errorMessage}</p>
+      <p class="error-main">{error}</p>
       
       {#if detailedError}
         <p class="error-detail">{detailedError}</p>
       {/if}
       
       <div class="actions">
-        <button class="action-button" on:click={clearStorageAndRetry}>
-          Clear Storage & Retry
+        <button class="action-button" on:click={tryAgain}>
+          Try Again
         </button>
-        <a href="/" class="action-link">Return to Home</a>
+        <a href="/" class="back-link">Return to Home</a>
       </div>
     </div>
   {/if}
-  
-  {#if debugInfo}
-    <pre class="debug-log">{debugInfo}</pre>
-  {/if}
 </div>
-
-<!-- Include debug panel in development only -->
-{#if import.meta.env.DEV}
-  <DebugInfo />
-{/if}
 
 <style>
   .callback-container {
@@ -147,17 +106,11 @@
     border-radius: 10px;
     padding: 2rem;
     max-width: 500px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   }
   
-  .loading h2, .error h2 {
+  h2 {
     margin-top: 0;
     margin-bottom: 1rem;
-    font-size: 1.8rem;
-  }
-  
-  .loading {
-    color: #1DB954; /* Spotify green */
   }
   
   .error {
@@ -198,28 +151,29 @@
     background-color: #c0392b;
   }
   
-  .action-link {
+  .back-link {
     color: #3498db;
     text-decoration: none;
     padding: 5px;
   }
   
-  .action-link:hover {
+  .back-link:hover {
     text-decoration: underline;
   }
   
-  .debug-log {
-    margin-top: 2rem;
-    padding: 1rem;
-    background-color: rgba(0, 0, 0, 0.8);
-    color: #00ff00;
-    font-family: monospace;
-    font-size: 12px;
-    border-radius: 5px;
-    text-align: left;
-    width: 100%;
-    max-width: 600px;
-    overflow-x: auto;
-    white-space: pre-wrap;
+  /* Loading spinner */
+  .spinner {
+    width: 40px;
+    height: 40px;
+    margin: 20px auto;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid #e74c3c;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 </style>

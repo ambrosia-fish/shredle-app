@@ -1,47 +1,30 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { loginWithSpotify, checkAuthStatus } from '$lib/services/spotifyAuth';
-  import { isAuthenticated, isPremium } from '$lib/stores/auth';
-  import DebugInfo from '$lib/components/DebugInfo.svelte';
-
-  let debugInfo = '';
-
+  import { loginWithSpotify, checkAuth } from '$lib/services/spotifyAuth';
+  
+  let isLoading = true;
+  let authError = '';
+  
   onMount(() => {
-    console.log('Home page mounted');
-    debugInfo += 'Home page mounted\n';
+    // Check for error query parameter (might be redirected from callback with error)
+    const urlParams = new URLSearchParams(window.location.search);
+    authError = urlParams.get('error') || '';
     
-    // Log auth state
-    debugInfo += `Initial auth state: isAuthenticated=${$isAuthenticated}, isPremium=${$isPremium}\n`;
-    console.log('Initial auth state:', { isAuthenticated: $isAuthenticated, isPremium: $isPremium });
-    
-    // Check if we need to refresh the auth
-    debugInfo += 'Running checkAuthStatus()\n';
-    const authStatus = checkAuthStatus();
-    debugInfo += `checkAuthStatus result: ${authStatus}\n`;
-    
-    // Log updated auth state
-    debugInfo += `Updated auth state: isAuthenticated=${$isAuthenticated}, isPremium=${$isPremium}\n`;
-    console.log('Updated auth state:', { isAuthenticated: $isAuthenticated, isPremium: $isPremium });
-    
-    // Check if we're already authenticated and have premium
-    if ($isAuthenticated && $isPremium) {
-      debugInfo += 'Authenticated with Premium, redirecting to game page\n';
-      console.log('Authenticated with Premium, redirecting to game page');
-      // Use window.location for a full page reload to avoid navigation issues
+    // Check if already authenticated
+    if (checkAuth()) {
+      // Already logged in, go to game
       window.location.href = '/game';
-    } else if ($isAuthenticated && !$isPremium) {
-      debugInfo += 'Authenticated but no Premium\n';
-      console.log('Authenticated but no Premium');
-    } else {
-      debugInfo += 'Not authenticated\n';
-      console.log('Not authenticated');
     }
+    
+    isLoading = false;
   });
-
+  
   function handleLogin() {
-    console.log('Initiating Spotify login');
-    debugInfo += 'Login button clicked\n';
+    // Clear any error message
+    authError = '';
+    
+    // Start login flow
     loginWithSpotify();
   }
 </script>
@@ -50,23 +33,30 @@
   <h1>Guitar Solo Guesser</h1>
   <p>Test your knowledge of famous guitar solos!</p>
   
-  <button on:click={handleLogin}>Login with Spotify</button>
-  
-  {#if $isAuthenticated && !$isPremium}
-    <div class="error-message">
-      <p>Spotify Premium is required to play Guitar Solo Guesser.</p>
+  {#if isLoading}
+    <div class="loading">Checking login status...</div>
+  {:else if authError}
+    <div class="error">
+      <p>Authentication error: {authError}</p>
+      <p class="error-tip">Please try logging in again.</p>
     </div>
   {/if}
   
-  {#if debugInfo}
-    <pre class="debug-log">{debugInfo}</pre>
-  {/if}
+  <button on:click={handleLogin} class="login-button" disabled={isLoading}>
+    Login with Spotify
+  </button>
+  
+  <div class="info-box">
+    <h3>How to play:</h3>
+    <ol>
+      <li>Login with your Spotify Premium account</li>
+      <li>Listen to a snippet of a famous guitar solo</li>
+      <li>Guess the song title within 4 attempts</li>
+      <li>Each wrong guess reveals more of the solo</li>
+    </ol>
+    <p class="note">Note: Requires Spotify Premium to use the player</p>
+  </div>
 </div>
-
-<!-- Include debug panel in development only -->
-{#if import.meta.env.DEV}
-  <DebugInfo />
-{/if}
 
 <style>
   .home-container {
@@ -89,27 +79,82 @@
     font-size: 1.2rem;
   }
   
-  .error-message {
+  .login-button {
+    background: #1DB954; /* Spotify green */
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .login-button:hover {
+    background: #1ed760;
+    transform: scale(1.05);
+  }
+  
+  .login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .loading {
+    opacity: 0.7;
     margin-top: 1rem;
-    color: #e74c3c;
+    margin-bottom: 1rem;
+  }
+  
+  .error {
     background-color: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
     padding: 1rem;
-    border-radius: 4px;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
     max-width: 400px;
   }
   
-  .debug-log {
-    margin-top: 2rem;
-    padding: 1rem;
-    background-color: rgba(0, 0, 0, 0.8);
-    color: #00ff00;
-    font-family: monospace;
-    font-size: 12px;
-    border-radius: 5px;
+  .error-tip {
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+  }
+  
+  .info-box {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-radius: 8px;
+    padding: 1.5rem;
+    max-width: 400px;
     text-align: left;
-    width: 100%;
-    max-width: 600px;
-    overflow-x: auto;
-    white-space: pre-wrap;
+  }
+  
+  .info-box h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
+  .info-box ol {
+    padding-left: 1.5rem;
+    margin: 0 0 1rem 0;
+  }
+  
+  .info-box li {
+    margin-bottom: 0.5rem;
+  }
+  
+  .info-box li:last-child {
+    margin-bottom: 0;
+  }
+  
+  .note {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    font-style: italic;
+    margin-bottom: 0;
   }
 </style>
