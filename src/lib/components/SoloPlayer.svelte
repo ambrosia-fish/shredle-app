@@ -20,22 +20,25 @@
   onMount(() => {
     console.log('SoloPlayer mounted, waiting for SDK...');
     
-    // Check if window.Spotify is defined
-    if (window.Spotify) {
-      console.log('Spotify SDK already loaded');
-      initializePlayer();
-    } else if (window.SpotifyPlayerSDKReady) {
-      console.log('Spotify SDK ready flag is set');
-      initializePlayer();
-    } else {
-      console.log('Setting up onSpotifyWebPlaybackSDKReady callback');
-      // Set up the callback for when the SDK loads
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        console.log('onSpotifyWebPlaybackSDKReady called');
-        window.SpotifyPlayerSDKReady = true;
+    // Fix: Add a small delay to ensure the SDK is fully loaded
+    setTimeout(() => {
+      // Check if window.Spotify is defined
+      if (window.Spotify) {
+        console.log('Spotify SDK already loaded');
         initializePlayer();
-      };
-    }
+      } else if (window.SpotifyPlayerSDKReady) {
+        console.log('Spotify SDK ready flag is set');
+        initializePlayer();
+      } else {
+        console.log('Setting up onSpotifyWebPlaybackSDKReady callback');
+        // Set up the callback for when the SDK loads
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          console.log('onSpotifyWebPlaybackSDKReady called');
+          window.SpotifyPlayerSDKReady = true;
+          initializePlayer();
+        };
+      }
+    }, 1000); // 1 second delay
   });
   
   onDestroy(() => {
@@ -48,18 +51,20 @@
   function initializePlayer() {
     try {
       console.log('Initializing Spotify player...');
-      console.log('Access token available:', !!get(accessToken));
+      const token = get(accessToken);
+      console.log('Access token available:', !!token);
       
-      if (!get(accessToken)) {
+      if (!token) {
         error = 'No access token available. Please log in again.';
         isLoading = false;
         return;
       }
       
+      // Fix: Make sure token is passed correctly without quotes
       player = new window.Spotify.Player({
         name: 'Guitar Solo Guesser',
         getOAuthToken: cb => { 
-          const token = get(accessToken);
+          // Pass the token directly without any manipulation
           console.log('Token provided to SDK:', token ? 'Token available' : 'No token');
           cb(token); 
         }
@@ -134,6 +139,10 @@
           error = 'Failed to connect to Spotify';
           isLoading = false;
         }
+      }).catch((e: any) => {
+        console.error('Error connecting to Spotify:', e);
+        error = `Connection error: ${e.message || 'Unknown error'}`;
+        isLoading = false;
       });
     } catch (err) {
       console.error('Error initializing player:', err);
@@ -150,6 +159,8 @@
     
     try {
       console.log(`Preloading track ${spotifyId} at position ${startTimeMs}ms`);
+      const token = get(accessToken);
+      
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -158,7 +169,7 @@
         }),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${get(accessToken)}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -188,6 +199,8 @@
     
     try {
       console.log(`Playing track ${spotifyId} from position ${startTimeMs}ms`);
+      const token = get(accessToken);
+      
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -196,7 +209,7 @@
         }),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${get(accessToken)}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -244,6 +257,7 @@
   {:else if error}
     <div class="error">
       <p>{error}</p>
+      <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {:else if isReady}
     <button class="play-button" on:click={isPlaying ? pauseSolo : playSolo}>
@@ -258,6 +272,7 @@
   {:else}
     <div class="error">
       <p>Unable to initialize Spotify player. Please make sure you have a Premium account.</p>
+      <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {/if}
 </div>
