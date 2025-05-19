@@ -6,11 +6,19 @@ import { get } from 'svelte/store';
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
 
+// Base64 URL safe encoding function
+function base64URLEncode(buffer: ArrayBuffer): string {
+  return btoa(String.fromCharCode.apply(null, [...new Uint8Array(buffer)]))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
 // Generate a random string for PKCE
 function generateRandomString(length: number): string {
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const values = crypto.getRandomValues(new Uint8Array(length));
-  return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return base64URLEncode(array.buffer).slice(0, length);
 }
 
 // Generate code challenge from verifier
@@ -19,52 +27,61 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
   const data = encoder.encode(codeVerifier);
   const digest = await crypto.subtle.digest('SHA-256', data);
   
-  // Convert the digest to base64url format properly
-  return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  // Convert to base64url encoding
+  return base64URLEncode(digest);
 }
 
 // Start Spotify login flow
 export async function loginWithSpotify(): Promise<void> {
-  // PKCE challenge
-  const codeVerifier = generateRandomString(64);
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  
-  // Store code verifier for later exchange
-  localStorage.setItem('code_verifier', codeVerifier);
-  
-  // Auth parameters - added user-modify-playback-state scope
-  const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
-  const authUrl = new URL('https://accounts.spotify.com/authorize');
-  
-  console.log('Login initiated with redirect URI:', redirectUri);
-  console.log('Code verifier stored in localStorage');
-  
-  // Add parameters
-  const params = {
-    response_type: 'code',
-    client_id: clientId,
-    scope,
-    code_challenge_method: 'S256',
-    code_challenge: codeChallenge,
-    redirect_uri: redirectUri,
-  };
-  
-  authUrl.search = new URLSearchParams(params).toString();
-  
-  // Redirect to Spotify auth page
-  window.location.href = authUrl.toString();
+  try {
+    // Clear any existing code verifier - preventing stale values
+    localStorage.removeItem('code_verifier');
+    
+    // Generate a new code verifier - use base64 URL encoding for better compatibility
+    const codeVerifier = generateRandomString(64);
+    console.log('Generated new code verifier (length):', codeVerifier.length);
+    
+    // Store code verifier for later exchange - must be the exact same value
+    localStorage.setItem('code_verifier', codeVerifier);
+    console.log('Stored code verifier in localStorage');
+    
+    // Generate code challenge from verifier
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    console.log('Generated code challenge (length):', codeChallenge.length);
+    
+    // Auth parameters - include all required scopes
+    const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
+    const authUrl = new URL('https://accounts.spotify.com/authorize');
+    
+    console.log('Login initiated with redirect URI:', redirectUri);
+    
+    // Add parameters
+    const params = {
+      response_type: 'code',
+      client_id: clientId,
+      scope,
+      code_challenge_method: 'S256',
+      code_challenge: codeChallenge,
+      redirect_uri: redirectUri,
+    };
+    
+    authUrl.search = new URLSearchParams(params).toString();
+    
+    // Redirect to Spotify auth page
+    window.location.href = authUrl.toString();
+  } catch (error) {
+    console.error('Error initiating Spotify login:', error);
+    alert('Failed to start Spotify login. Please try again.');
+  }
 }
 
 // Exchange code for tokens after redirect
 export async function handleCallback(code: string): Promise<boolean> {
-  console.log('Callback received with code:', code ? 'Present (hidden for security)' : 'Missing');
+  console.log('Callback received with code:', code ? 'Present' : 'Missing');
   
   const codeVerifier = localStorage.getItem('code_verifier');
   
-  console.log('Code verifier from localStorage:', codeVerifier ? 'exists' : 'missing');
+  console.log('Code verifier from localStorage:', codeVerifier ? `exists (${codeVerifier.length} chars)` : 'missing');
   
   if (!codeVerifier) {
     console.error('No code verifier found in localStorage');
@@ -87,17 +104,29 @@ export async function handleCallback(code: string): Promise<boolean> {
   };
   
   console.log('Token request payload:', {
-    client_id: clientId ? 'Present (hidden for security)' : 'Missing',
+    client_id: clientId ? 'Present' : 'Missing',
     redirect_uri: redirectUri,
     code_verifier_length: codeVerifier.length,
+    code_length: code.length
   });
   
   try {
     const response = await fetch(tokenUrl, payload);
     console.log('Token response status:', response.status);
     
+    // Log more details about the response if it fails
     if (!response.ok) {
-      console.error('Token response not OK:', response.status, response.statusText);
+      const responseText = await response.text();
+      console.error('Token response not OK:', response.status, responseText);
+      
+      try {
+        // Try to parse as JSON for more detailed error
+        const errorData = JSON.parse(responseText);
+        console.error('Error details:', errorData);
+        throw new Error(errorData.error_description || errorData.error || 'Authentication failed');
+      } catch (parseError) {
+        throw new Error(`Authentication failed (${response.status})`);
+      }
     }
     
     const data = await response.json();
@@ -136,7 +165,7 @@ export async function handleCallback(code: string): Promise<boolean> {
 export async function fetchUserProfile(): Promise<any> {
   const token = get(accessToken);
   
-  console.log('Fetching user profile with token:', token ? 'Present (hidden for security)' : 'Missing');
+  console.log('Fetching user profile with token:', token ? 'Present' : 'Missing');
   
   if (!token) {
     isAuthenticated.set(false);
