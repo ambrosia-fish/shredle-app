@@ -16,9 +16,20 @@
   let isReady: boolean = false;
   let isLoading: boolean = true;
   let error: string = '';
+  let rawToken: string = '';
   
   onMount(() => {
     console.log('SoloPlayer mounted, waiting for SDK...');
+    
+    // Get the token directly from localStorage to avoid any potential store issues
+    rawToken = localStorage.getItem('spotify_access_token') || '';
+    console.log('Raw token from localStorage:', rawToken ? 'Present' : 'Missing');
+    
+    if (!rawToken) {
+      error = 'No access token found in localStorage. Please log in again.';
+      isLoading = false;
+      return;
+    }
     
     // Fix: Add a small delay to ensure the SDK is fully loaded
     setTimeout(() => {
@@ -51,24 +62,35 @@
   function initializePlayer() {
     try {
       console.log('Initializing Spotify player...');
-      const token = get(accessToken);
-      console.log('Access token available:', !!token);
       
-      if (!token) {
+      // Make sure we're not using a quoted token
+      if (rawToken.startsWith('"') && rawToken.endsWith('"')) {
+        rawToken = rawToken.slice(1, -1);
+        console.log('Removed quotes from token');
+      }
+      
+      console.log('Access token available:', !!rawToken);
+      
+      if (!rawToken) {
         error = 'No access token available. Please log in again.';
         isLoading = false;
         return;
       }
       
-      // Fix: Make sure token is passed correctly without quotes
-      player = new window.Spotify.Player({
+      // Create a fresh object for the player config
+      const playerConfig = {
         name: 'Guitar Solo Guesser',
-        getOAuthToken: cb => { 
-          // Pass the token directly without any manipulation
-          console.log('Token provided to SDK:', token ? 'Token available' : 'No token');
-          cb(token); 
+        getOAuthToken: (cb: (token: string) => void) => {
+          console.log('Token callback requested by SDK');
+          // Pass the raw token directly
+          cb(rawToken);
         }
-      });
+      };
+      
+      console.log('Creating player with config:', JSON.stringify(playerConfig, (k, v) => k === 'getOAuthToken' ? '(function)' : v));
+      
+      // Fix: Make sure token is passed correctly without quotes
+      player = new window.Spotify.Player(playerConfig);
       
       // Error handling
       player.addListener('initialization_error', ({ message }: { message: string }) => {
@@ -159,7 +181,6 @@
     
     try {
       console.log(`Preloading track ${spotifyId} at position ${startTimeMs}ms`);
-      const token = get(accessToken);
       
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
@@ -169,7 +190,7 @@
         }),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${rawToken}`
         }
       });
       
@@ -199,7 +220,6 @@
     
     try {
       console.log(`Playing track ${spotifyId} from position ${startTimeMs}ms`);
-      const token = get(accessToken);
       
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
@@ -209,7 +229,7 @@
         }),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${rawToken}`
         }
       });
       
