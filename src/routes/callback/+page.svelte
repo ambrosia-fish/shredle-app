@@ -8,6 +8,7 @@
   let errorMessage = '';
   let loading = true;
   let detailedError = '';
+  let debugInfo = '';
   
   onMount(async () => {
     try {
@@ -15,6 +16,7 @@
       const code = url.searchParams.get('code');
       const error = url.searchParams.get('error');
       
+      debugInfo += `Callback page loaded with: code=${code ? 'Present' : 'Missing'}, error=${error || 'None'}\n`;
       console.log('Callback page loaded with:', {
         code: code ? 'Present' : 'Missing',
         error: error || 'None'
@@ -24,6 +26,7 @@
         errorMessage = `Authentication error: ${error}`;
         detailedError = 'Spotify returned an error during the authorization process.';
         loading = false;
+        debugInfo += `Error from Spotify: ${error}\n`;
         return;
       }
       
@@ -31,28 +34,45 @@
         errorMessage = 'No authentication code received from Spotify.';
         detailedError = 'The authorization code is missing from the callback URL.';
         loading = false;
+        debugInfo += 'No code in URL\n';
         return;
       }
       
       try {
+        debugInfo += 'Attempting to handle callback with code...\n';
         console.log('Attempting to handle callback with code...');
+        
         const success = await handleCallback(code);
+        debugInfo += `handleCallback result: ${success}\n`;
         
         if (success) {
+          debugInfo += `Callback handled successfully, isPremium: ${$isPremium}\n`;
           console.log('Callback handled successfully, isPremium:', $isPremium);
-          // Check premium status
+          
+          // Add a short delay to ensure stores are updated
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Check premium status again after delay
+          debugInfo += `After delay, isPremium: ${$isPremium}\n`;
+          
+          // Use window.location instead of goto to force a full page reload
           if ($isPremium) {
-            goto('/game');
+            debugInfo += 'Redirecting to /game\n';
+            // Force a full page reload instead of client-side navigation
+            window.location.href = '/game';
           } else {
-            goto('/'); // Back to home with premium required message
+            debugInfo += 'Redirecting to / (home) due to no premium\n';
+            window.location.href = '/';
           }
         } else {
           errorMessage = 'Failed to authenticate with Spotify.';
           detailedError = 'Authentication was unsuccessful. Please try again.';
+          debugInfo += 'Authentication failed (success=false)\n';
         }
       } catch (err) {
         console.error('Error in callback handler:', err);
         errorMessage = err.message || 'An error occurred during authentication.';
+        debugInfo += `Error in callback: ${err.message}\n`;
         
         if (err.message.includes('code_verifier')) {
           detailedError = 'Authentication session expired or was invalid. Please clear your browser storage and try logging in again.';
@@ -64,6 +84,7 @@
       console.error('Unexpected error in callback page:', err);
       errorMessage = 'An unexpected error occurred';
       detailedError = err.message || 'Unknown error';
+      debugInfo += `Unexpected error: ${err.message}\n`;
     } finally {
       loading = false;
     }
@@ -99,6 +120,10 @@
       </div>
     </div>
   {/if}
+  
+  {#if debugInfo}
+    <pre class="debug-log">{debugInfo}</pre>
+  {/if}
 </div>
 
 <!-- Include debug panel in development only -->
@@ -109,9 +134,10 @@
 <style>
   .callback-container {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     text-align: center;
     padding: 0 20px;
   }
@@ -180,5 +206,20 @@
   
   .action-link:hover {
     text-decoration: underline;
+  }
+  
+  .debug-log {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    font-family: monospace;
+    font-size: 12px;
+    border-radius: 5px;
+    text-align: left;
+    width: 100%;
+    max-width: 600px;
+    overflow-x: auto;
+    white-space: pre-wrap;
   }
 </style>
