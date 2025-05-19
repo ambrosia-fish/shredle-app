@@ -4,7 +4,7 @@ import { get } from 'svelte/store';
 
 // Get environment variables
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET; // Add this
+const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET; 
 const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
 
 // Using a simplified auth flow without PKCE
@@ -102,13 +102,18 @@ export async function handleCallback(code: string): Promise<boolean> {
     console.log('Token response success:', data.access_token ? 'Token received' : 'No token received');
     
     if (data.access_token) {
+      // Important: Make sure we store the token as a plain string without quotes
+      const tokenValue = String(data.access_token).replace(/^["']|["']$/g, '');
+      const refreshTokenValue = String(data.refresh_token).replace(/^["']|["']$/g, '');
+      const expiryValue = String(Date.now() + (data.expires_in * 1000));
+      
       // Store tokens
-      localStorage.setItem('spotify_access_token', data.access_token);
-      localStorage.setItem('spotify_refresh_token', data.refresh_token);
-      localStorage.setItem('spotify_token_expiry', String(Date.now() + (data.expires_in * 1000)));
+      localStorage.setItem('spotify_access_token', tokenValue);
+      localStorage.setItem('spotify_refresh_token', refreshTokenValue);
+      localStorage.setItem('spotify_token_expiry', expiryValue);
       
       // Update store
-      accessToken.set(data.access_token);
+      accessToken.set(tokenValue);
       
       // Get user profile and check premium
       await fetchUserProfile();
@@ -126,7 +131,8 @@ export async function handleCallback(code: string): Promise<boolean> {
 
 // Get user profile and check premium status
 export async function fetchUserProfile(): Promise<any> {
-  const token = get(accessToken);
+  // Get token directly from localStorage to avoid any store issues
+  const token = localStorage.getItem('spotify_access_token');
   
   console.log('Fetching user profile with token:', token ? 'Present' : 'Missing');
   
@@ -202,14 +208,19 @@ export async function refreshAccessToken(): Promise<boolean> {
     const data = await response.json();
     
     if (data.access_token) {
-      localStorage.setItem('spotify_access_token', data.access_token);
-      localStorage.setItem('spotify_token_expiry', String(Date.now() + (data.expires_in * 1000)));
+      // Store tokens without quotes
+      const tokenValue = String(data.access_token).replace(/^["']|["']$/g, '');
+      const expiryValue = String(Date.now() + (data.expires_in * 1000));
+      
+      localStorage.setItem('spotify_access_token', tokenValue);
+      localStorage.setItem('spotify_token_expiry', expiryValue);
       
       if (data.refresh_token) {
-        localStorage.setItem('spotify_refresh_token', data.refresh_token);
+        const refreshTokenValue = String(data.refresh_token).replace(/^["']|["']$/g, '');
+        localStorage.setItem('spotify_refresh_token', refreshTokenValue);
       }
       
-      accessToken.set(data.access_token);
+      accessToken.set(tokenValue);
       return true;
     }
   } catch (error) {
@@ -233,7 +244,9 @@ export function checkAuthStatus(): boolean {
   if (Date.now() > parseInt(expiry) - 300000) { // 5 min buffer
     refreshAccessToken();
   } else {
-    accessToken.set(token);
+    // Make sure we're using a token without quotes in the store
+    const cleanToken = String(token).replace(/^["']|["']$/g, '');
+    accessToken.set(cleanToken);
     isAuthenticated.set(true);
     fetchUserProfile();
   }
