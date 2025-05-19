@@ -1,10 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { checkAuthStatus } from '$lib/services/spotifyAuth';
+  import { checkAuth } from '$lib/services/spotifyAuth';
   import { getDailySolo, submitGuess } from '$lib/services/api';
   import { updateGameState, gameState, currentSolo, attemptsRemaining } from '$lib/stores/game';
-  import { isAuthenticated, isPremium } from '$lib/stores/auth';
   import SoloPlayer from '$lib/components/SoloPlayer.svelte';
   import GuessForm from '$lib/components/GuessForm.svelte';
   
@@ -14,14 +12,8 @@
   
   onMount(async () => {
     // Verify authentication
-    if (!checkAuthStatus()) {
-      goto('/');
-      return;
-    }
-    
-    // Verify premium
-    if (!$isPremium) {
-      goto('/');
+    if (!checkAuth()) {
+      window.location.href = '/';
       return;
     }
     
@@ -33,10 +25,13 @@
       
       // If game is already complete, redirect to result page
       if (data.isComplete) {
+        // Store game state in localStorage before redirecting
+        localStorage.setItem('game_state', JSON.stringify(data));
+        
         if (data.currentSolo.isCorrect) {
-          goto('/correct');
+          window.location.href = '/correct';
         } else {
-          goto('/incorrect');
+          window.location.href = '/incorrect';
         }
       }
     } catch (err) {
@@ -55,10 +50,14 @@
       
       // Check if game is complete
       if (response.isComplete) {
+        // Store game state in localStorage before redirecting
+        localStorage.setItem('game_state', JSON.stringify(response));
+        
         if (response.currentSolo.isCorrect) {
-          goto('/correct');
+          // Use direct navigation instead of goto
+          window.location.href = '/correct';
         } else {
-          goto('/incorrect');
+          window.location.href = '/incorrect';
         }
       }
     } catch (err) {
@@ -84,7 +83,6 @@
       <SoloPlayer 
         spotifyId={$currentSolo.spotifyId}
         startTimeMs={$currentSolo.soloStartTimeMs}
-        endTimeMs={$currentSolo.soloEndTimeMs}
         clipDurationMs={$currentSolo.clipDurationMs}
       />
       
