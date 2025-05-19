@@ -3,6 +3,7 @@
   import { accessToken, isAuthenticated, isPremium } from '$lib/stores/auth';
   
   let clientId = '';
+  let clientSecret = '';
   let redirectUri = '';
   let sdkLoaded = false;
   let codeVerifier = '';
@@ -13,6 +14,7 @@
     try {
       // Check environment variables
       clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || 'Not defined';
+      clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET || 'Not defined';
       redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || 'Not defined';
       
       // Check SDK
@@ -28,12 +30,19 @@
       console.error('Error in debug component:', error);
     }
   });
+  
+  function clearStorage() {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.reload();
+  }
 </script>
 
 <div class="debug-panel">
   <h3>Auth Debug Info</h3>
   <ul>
     <li>Client ID: {clientId.substring(0, 4)}...</li>
+    <li>Client Secret: {clientSecret ? 'Defined' : 'Not defined'}</li>
     <li>Redirect URI: {redirectUri}</li>
     <li>Spotify SDK Loaded: {sdkLoaded ? 'Yes' : 'No'}</li>
     <li>Local Storage: {localStorageAvailable ? 'Available' : 'Unavailable'}</li>
@@ -43,7 +52,7 @@
     <li>Is Premium: {$isPremium ? 'Yes' : 'No'}</li>
   </ul>
   <div class="debug-actions">
-    <button on:click={() => localStorage.clear()}>Clear Storage</button>
+    <button on:click={clearStorage}>Clear Storage</button>
   </div>
 </div>
 
