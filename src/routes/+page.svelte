@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { loginWithSpotify } from '$lib/services/spotifyAuth';
   import { isAuthenticated, isPremium } from '$lib/stores/auth';
+  import DebugInfo from '$lib/components/DebugInfo.svelte';
 
   onMount(() => {
     // Check if we're already authenticated and have premium
@@ -12,6 +13,7 @@
   });
 
   function handleLogin() {
+    console.log('Initiating Spotify login');
     loginWithSpotify();
   }
 </script>
@@ -28,6 +30,11 @@
     </div>
   {/if}
 </div>
+
+<!-- Include debug panel in development only -->
+{#if import.meta.env.DEV}
+  <DebugInfo />
+{/if}
 
 <style>
   .home-container {
