@@ -6,48 +6,14 @@ import { get } from 'svelte/store';
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
 
-// Base64 URL safe encoding function
-function base64URLEncode(buffer: ArrayBuffer): string {
-  return btoa(String.fromCharCode.apply(null, [...new Uint8Array(buffer)]))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-// Generate a random string for PKCE
-function generateRandomString(length: number): string {
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-  return base64URLEncode(array.buffer).slice(0, length);
-}
-
-// Generate code challenge from verifier
-async function generateCodeChallenge(codeVerifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(codeVerifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  
-  // Convert to base64url encoding
-  return base64URLEncode(digest);
-}
+// Using a simplified auth flow without PKCE
 
 // Start Spotify login flow
 export async function loginWithSpotify(): Promise<void> {
   try {
-    // Clear any existing code verifier - preventing stale values
-    localStorage.removeItem('code_verifier');
-    
-    // Generate a new code verifier - use base64 URL encoding for better compatibility
-    const codeVerifier = generateRandomString(64);
-    console.log('Generated new code verifier (length):', codeVerifier.length);
-    
-    // Store code verifier for later exchange - must be the exact same value
-    localStorage.setItem('code_verifier', codeVerifier);
-    console.log('Stored code verifier in localStorage');
-    
-    // Generate code challenge from verifier
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    console.log('Generated code challenge (length):', codeChallenge.length);
+    // Clear storage first to prevent any stale data issues
+    localStorage.clear();
+    console.log('Storage cleared before login');
     
     // Auth parameters - include all required scopes
     const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
@@ -55,13 +21,11 @@ export async function loginWithSpotify(): Promise<void> {
     
     console.log('Login initiated with redirect URI:', redirectUri);
     
-    // Add parameters
+    // Add parameters - using standard OAuth flow (no PKCE)
     const params = {
       response_type: 'code',
       client_id: clientId,
       scope,
-      code_challenge_method: 'S256',
-      code_challenge: codeChallenge,
       redirect_uri: redirectUri,
     };
     
@@ -79,15 +43,6 @@ export async function loginWithSpotify(): Promise<void> {
 export async function handleCallback(code: string): Promise<boolean> {
   console.log('Callback received with code:', code ? 'Present' : 'Missing');
   
-  const codeVerifier = localStorage.getItem('code_verifier');
-  
-  console.log('Code verifier from localStorage:', codeVerifier ? `exists (${codeVerifier.length} chars)` : 'missing');
-  
-  if (!codeVerifier) {
-    console.error('No code verifier found in localStorage');
-    throw new Error('No code verifier found. Please try logging in again.');
-  }
-  
   const tokenUrl = 'https://accounts.spotify.com/api/token';
   const payload = {
     method: 'POST',
@@ -99,15 +54,12 @@ export async function handleCallback(code: string): Promise<boolean> {
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
     }),
   };
   
   console.log('Token request payload:', {
     client_id: clientId ? 'Present' : 'Missing',
     redirect_uri: redirectUri,
-    code_verifier_length: codeVerifier.length,
-    code_length: code.length
   });
   
   try {
@@ -280,7 +232,6 @@ export function logout(): void {
   localStorage.removeItem('spotify_access_token');
   localStorage.removeItem('spotify_refresh_token');
   localStorage.removeItem('spotify_token_expiry');
-  localStorage.removeItem('code_verifier');
   
   isAuthenticated.set(false);
   userProfile.set(null);
