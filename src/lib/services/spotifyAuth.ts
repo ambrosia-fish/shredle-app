@@ -4,16 +4,16 @@ import { get } from 'svelte/store';
 
 // Get client ID from environment variable
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${window.location.origin}/callback`;
 
 // Generate a random string for PKCE
 function generateRandomString(length: number): string {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = crypto.getRandomValues(new Uint8Array(length));
-  return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+  return Array.from(values).map(x => possible[x % possible.length]).join('');
 }
 
-// Generate code challenge from verifier
+// Helper to generate code challenge for PKCE
 async function generateCodeChallenge(codeVerifier: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(codeVerifier);
@@ -28,6 +28,8 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
 // Start Spotify login flow
 export async function loginWithSpotify(): Promise<void> {
   try {
+    console.log('Starting Spotify login process');
+    
     // Clear any previous auth data
     localStorage.removeItem('code_verifier');
     
@@ -50,7 +52,7 @@ export async function loginWithSpotify(): Promise<void> {
     }
     
     // Auth parameters
-    const scope = 'streaming user-read-email user-read-private';
+    const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
     const authUrl = new URL('https://accounts.spotify.com/authorize');
     
     // Add state parameter for extra security
@@ -66,6 +68,7 @@ export async function loginWithSpotify(): Promise<void> {
       code_challenge: codeChallenge,
       redirect_uri: redirectUri,
       state, // Add state parameter
+      show_dialog: 'true',
     };
     
     authUrl.search = new URLSearchParams(params).toString();
