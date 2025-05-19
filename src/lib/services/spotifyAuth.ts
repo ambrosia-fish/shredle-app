@@ -19,10 +19,11 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
   const data = encoder.encode(codeVerifier);
   const digest = await crypto.subtle.digest('SHA-256', data);
   
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/=/g, '')
+  // Convert the digest to base64url format properly
+  return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
     .replace(/\+/g, '-')
-    .replace(/\//g, '_');
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 // Start Spotify login flow
@@ -34,9 +35,12 @@ export async function loginWithSpotify(): Promise<void> {
   // Store code verifier for later exchange
   localStorage.setItem('code_verifier', codeVerifier);
   
-  // Auth parameters
-  const scope = 'streaming user-read-email user-read-private';
+  // Auth parameters - added user-modify-playback-state scope
+  const scope = 'streaming user-read-email user-read-private user-modify-playback-state';
   const authUrl = new URL('https://accounts.spotify.com/authorize');
+  
+  console.log('Login initiated with redirect URI:', redirectUri);
+  console.log('Code verifier stored in localStorage');
   
   // Add parameters
   const params = {
@@ -55,14 +59,16 @@ export async function loginWithSpotify(): Promise<void> {
 }
 
 // Exchange code for tokens after redirect
-// Exchange code for tokens after redirect
 export async function handleCallback(code: string): Promise<boolean> {
+  console.log('Callback received with code:', code ? 'Present (hidden for security)' : 'Missing');
+  
   const codeVerifier = localStorage.getItem('code_verifier');
   
-  console.log('Code verifier:', codeVerifier ? 'exists' : 'missing');
+  console.log('Code verifier from localStorage:', codeVerifier ? 'exists' : 'missing');
   
   if (!codeVerifier) {
-    throw new Error('No code verifier found');
+    console.error('No code verifier found in localStorage');
+    throw new Error('No code verifier found. Please try logging in again.');
   }
   
   const tokenUrl = 'https://accounts.spotify.com/api/token';
@@ -81,7 +87,7 @@ export async function handleCallback(code: string): Promise<boolean> {
   };
   
   console.log('Token request payload:', {
-    client_id: clientId,
+    client_id: clientId ? 'Present (hidden for security)' : 'Missing',
     redirect_uri: redirectUri,
     code_verifier_length: codeVerifier.length,
   });
@@ -90,8 +96,18 @@ export async function handleCallback(code: string): Promise<boolean> {
     const response = await fetch(tokenUrl, payload);
     console.log('Token response status:', response.status);
     
+    if (!response.ok) {
+      console.error('Token response not OK:', response.status, response.statusText);
+    }
+    
     const data = await response.json();
-    console.log('Token response:', data.error || 'Success');
+    
+    if (data.error) {
+      console.error('Token response error:', data.error, data.error_description);
+      throw new Error(data.error_description || data.error || 'Authentication failed');
+    }
+    
+    console.log('Token response success:', data.access_token ? 'Token received' : 'No token received');
     
     if (data.access_token) {
       // Store tokens
@@ -120,6 +136,8 @@ export async function handleCallback(code: string): Promise<boolean> {
 export async function fetchUserProfile(): Promise<any> {
   const token = get(accessToken);
   
+  console.log('Fetching user profile with token:', token ? 'Present (hidden for security)' : 'Missing');
+  
   if (!token) {
     isAuthenticated.set(false);
     return null;
@@ -132,7 +150,13 @@ export async function fetchUserProfile(): Promise<any> {
       }
     });
     
+    if (!response.ok) {
+      console.error('Profile fetch failed:', response.status, response.statusText);
+      throw new Error(`Failed to fetch profile: ${response.statusText}`);
+    }
+    
     const profile = await response.json();
+    console.log('Profile fetched:', profile.id, 'Product:', profile.product);
     
     // Check if user has premium
     if (profile.product === 'premium') {
@@ -174,6 +198,12 @@ export async function refreshAccessToken(): Promise<boolean> {
   
   try {
     const response = await fetch('https://accounts.spotify.com/api/token', payload);
+    
+    if (!response.ok) {
+      console.error('Token refresh failed:', response.status, response.statusText);
+      return false;
+    }
+    
     const data = await response.json();
     
     if (data.access_token) {
