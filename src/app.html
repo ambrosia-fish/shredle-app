@@ -5,10 +5,11 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width" />
 		<script>
-			// Define a global placeholder for the Spotify SDK callback
+			// Define global objects and callback for Spotify SDK
+			window.SpotifyPlayerSDKReady = false;
+			
 			window.onSpotifyWebPlaybackSDKReady = function() {
-				// This is a placeholder that will be replaced by the actual implementation
-				// in the SoloPlayer component
+				console.log("[Spotify] SDK Ready");
 				window.SpotifyPlayerSDKReady = true;
 			};
 		</script>
