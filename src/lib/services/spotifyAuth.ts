@@ -2,8 +2,9 @@
 import { isAuthenticated, userProfile, accessToken, isPremium } from '../stores/auth';
 import { get } from 'svelte/store';
 
-// Get client ID from environment variable
+// Get environment variables
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET; // Add this
 const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
 
 // Using a simplified auth flow without PKCE
@@ -43,14 +44,23 @@ export async function loginWithSpotify(): Promise<void> {
 export async function handleCallback(code: string): Promise<boolean> {
   console.log('Callback received with code:', code ? 'Present' : 'Missing');
   
+  if (!clientSecret) {
+    console.error('Client secret is missing - required for token exchange!');
+    throw new Error('Client secret is missing. Please check your environment variables.');
+  }
+  
   const tokenUrl = 'https://accounts.spotify.com/api/token';
+  
+  // Create Basic Auth header with client ID and secret
+  const authHeader = 'Basic ' + btoa(clientId + ':' + clientSecret);
+  
   const payload = {
     method: 'POST',
     headers: {
+      'Authorization': authHeader,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      client_id: clientId,
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
@@ -59,6 +69,7 @@ export async function handleCallback(code: string): Promise<boolean> {
   
   console.log('Token request payload:', {
     client_id: clientId ? 'Present' : 'Missing',
+    client_secret: clientSecret ? 'Present' : 'Missing',
     redirect_uri: redirectUri,
   });
   
@@ -163,17 +174,20 @@ export async function fetchUserProfile(): Promise<any> {
 export async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = localStorage.getItem('spotify_refresh_token');
   
-  if (!refreshToken) return false;
+  if (!refreshToken || !clientSecret) return false;
+  
+  // Create Basic Auth header with client ID and secret
+  const authHeader = 'Basic ' + btoa(clientId + ':' + clientSecret);
   
   const payload = {
     method: 'POST',
     headers: {
+      'Authorization': authHeader,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: clientId,
     }),
   };
   
