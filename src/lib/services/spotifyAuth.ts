@@ -27,66 +27,100 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
 
 // Start Spotify login flow
 export async function loginWithSpotify(): Promise<void> {
-  // PKCE challenge
-  const codeVerifier = generateRandomString(64);
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  
-  // Store code verifier for later exchange
-  localStorage.setItem('code_verifier', codeVerifier);
-  
-  // Auth parameters
-  const scope = 'streaming user-read-email user-read-private';
-  const authUrl = new URL('https://accounts.spotify.com/authorize');
-  
-  // Add parameters
-  const params = {
-    response_type: 'code',
-    client_id: clientId,
-    scope,
-    code_challenge_method: 'S256',
-    code_challenge: codeChallenge,
-    redirect_uri: redirectUri,
-  };
-  
-  authUrl.search = new URLSearchParams(params).toString();
-  
-  // Redirect to Spotify auth page
-  window.location.href = authUrl.toString();
+  try {
+    // Clear any previous auth data
+    localStorage.removeItem('code_verifier');
+    
+    // PKCE challenge
+    const codeVerifier = generateRandomString(64);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    
+    // Store code verifier for later exchange
+    localStorage.setItem('code_verifier', codeVerifier);
+    
+    // Add small delay to ensure localStorage is written before redirect
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Verify the code verifier was actually stored
+    const storedVerifier = localStorage.getItem('code_verifier');
+    if (!storedVerifier) {
+      // If storage failed, stop and show an error
+      alert('Browser storage is not working properly. Please check your privacy settings and try again.');
+      return;
+    }
+    
+    // Auth parameters
+    const scope = 'streaming user-read-email user-read-private';
+    const authUrl = new URL('https://accounts.spotify.com/authorize');
+    
+    // Add state parameter for extra security
+    const state = generateRandomString(16);
+    localStorage.setItem('spotify_auth_state', state);
+    
+    // Add parameters
+    const params = {
+      response_type: 'code',
+      client_id: clientId,
+      scope,
+      code_challenge_method: 'S256',
+      code_challenge: codeChallenge,
+      redirect_uri: redirectUri,
+      state, // Add state parameter
+    };
+    
+    authUrl.search = new URLSearchParams(params).toString();
+    
+    // Redirect to Spotify auth page
+    window.location.href = authUrl.toString();
+  } catch (error) {
+    console.error('Login preparation error:', error);
+    alert('Failed to start login process. Please try again.');
+  }
 }
 
 // Exchange code for tokens after redirect
-// Exchange code for tokens after redirect
 export async function handleCallback(code: string): Promise<boolean> {
-  const codeVerifier = localStorage.getItem('code_verifier');
-  
-  console.log('Code verifier:', codeVerifier ? 'exists' : 'missing');
-  
-  if (!codeVerifier) {
-    throw new Error('No code verifier found');
-  }
-  
-  const tokenUrl = 'https://accounts.spotify.com/api/token';
-  const payload = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      client_id: clientId,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
-    }),
-  };
-  
-  console.log('Token request payload:', {
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    code_verifier_length: codeVerifier.length,
-  });
-  
   try {
+    // Check state parameter if present
+    const url = new URL(window.location.href);
+    const returnedState = url.searchParams.get('state');
+    const originalState = localStorage.getItem('spotify_auth_state');
+    
+    if (returnedState && originalState && returnedState !== originalState) {
+      throw new Error('State mismatch - possible security issue');
+    }
+    
+    const codeVerifier = localStorage.getItem('code_verifier');
+    
+    console.log('Code verifier:', codeVerifier ? 'exists' : 'missing');
+    
+    if (!codeVerifier) {
+      // Fallback mechanism - try to recover session
+      localStorage.clear(); // Clear potentially corrupted state
+      throw new Error('No stored state found - the authorization session may have expired or been cleared');
+    }
+    
+    const tokenUrl = 'https://accounts.spotify.com/api/token';
+    const payload = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+      }),
+    };
+    
+    console.log('Token request payload:', {
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      code_verifier_length: codeVerifier.length,
+    });
+    
     const response = await fetch(tokenUrl, payload);
     console.log('Token response status:', response.status);
     
@@ -98,6 +132,10 @@ export async function handleCallback(code: string): Promise<boolean> {
       localStorage.setItem('spotify_access_token', data.access_token);
       localStorage.setItem('spotify_refresh_token', data.refresh_token);
       localStorage.setItem('spotify_token_expiry', String(Date.now() + (data.expires_in * 1000)));
+      
+      // Clear PKCE and state data
+      localStorage.removeItem('code_verifier');
+      localStorage.removeItem('spotify_auth_state');
       
       // Update store
       accessToken.set(data.access_token);
@@ -222,6 +260,7 @@ export function logout(): void {
   localStorage.removeItem('spotify_refresh_token');
   localStorage.removeItem('spotify_token_expiry');
   localStorage.removeItem('code_verifier');
+  localStorage.removeItem('spotify_auth_state');
   
   isAuthenticated.set(false);
   userProfile.set(null);
