@@ -1,3 +1,4 @@
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { checkAuth, logout } from '$lib/services/spotifyAuth';
@@ -79,7 +80,7 @@
 
 <div class="game-container">
   <div class="header-container">
-    <h1>Guitar Solo Guesser</h1>
+    <h1>Shredle</h1>
     <button class="logout-button" on:click={handleLogout}>Logout</button>
   </div>
   
