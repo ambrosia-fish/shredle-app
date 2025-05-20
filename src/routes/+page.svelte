@@ -37,6 +37,12 @@
     <p>⚠️ This app currently works on desktop browsers only ⚠️</p>
   </div>
   
+  <div class="restricted-access-notice">
+    <p><span class="restricted-badge">CLOSED BETA</span></p>
+    <p>Access is currently restricted to approved Spotify accounts.</p>
+    <p>Email <a href="mailto:josef@feztech.io">josef@feztech.io</a> to request access.</p>
+  </div>
+  
   {#if isLoading}
     <div class="loading">Checking login status...</div>
   {:else if authError}
@@ -98,6 +104,38 @@
   .desktop-only-notice p {
     margin-bottom: 0;
     font-size: 1rem;
+  }
+  
+  .restricted-access-notice {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    max-width: 400px;
+  }
+  
+  .restricted-access-notice p {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+  
+  .restricted-access-notice a {
+    color: #0c5460;
+    font-weight: bold;
+    text-decoration: underline;
+  }
+  
+  .restricted-badge {
+    background-color: #0c5460;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   
   .login-button {
