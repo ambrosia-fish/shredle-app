@@ -5,11 +5,18 @@
   
   let isLoading = true;
   let authError = '';
+  let errorDetail = '';
   
   onMount(() => {
     // Check for error query parameter (might be redirected from callback with error)
     const urlParams = new URLSearchParams(window.location.search);
     authError = urlParams.get('error') || '';
+    
+    // Add detailed message based on error type
+    if (authError === 'premium_required') {
+      authError = 'Premium Subscription Required';
+      errorDetail = 'Guitar Solo Guesser requires a Spotify Premium subscription to play the audio samples. Please upgrade your Spotify account to enjoy the game.';
+    }
     
     // Check if already authenticated
     if (checkAuth()) {
@@ -23,6 +30,7 @@
   function handleLogin() {
     // Clear any error message
     authError = '';
+    errorDetail = '';
     
     // Start login flow
     loginWithSpotify();
@@ -37,8 +45,12 @@
     <div class="loading">Checking login status...</div>
   {:else if authError}
     <div class="error">
-      <p>Authentication error: {authError}</p>
-      <p class="error-tip">Please try logging in again.</p>
+      <p class="error-title">{authError}</p>
+      {#if errorDetail}
+        <p class="error-detail">{errorDetail}</p>
+      {:else}
+        <p class="error-tip">Please try logging in again.</p>
+      {/if}
     </div>
   {/if}
   
@@ -116,6 +128,17 @@
     border-radius: 8px;
     margin-bottom: 1.5rem;
     max-width: 400px;
+  }
+  
+  .error-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+  }
+  
+  .error-detail {
+    font-size: 0.9rem;
+    margin-bottom: 0;
   }
   
   .error-tip {
