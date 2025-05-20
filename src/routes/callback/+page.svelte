@@ -6,16 +6,26 @@
   let isLoading = true;
   let error = '';
   let detailedError = '';
+  let debugInfo = '';
   
   onMount(async () => {
+    console.log('Callback component mounted');
+    
     try {
       const url = new URL(window.location.href);
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
       const spotifyError = url.searchParams.get('error');
       
-      // Log parameters for debugging
-      console.log('Callback parameters received:', { 
+      // Add debug information
+      debugInfo = `
+        URL: ${window.location.href}
+        Code: ${code ? 'Present' : 'Missing'}
+        State: ${state ? 'Present' : 'Missing'}
+        Spotify Error: ${spotifyError || 'None'}
+      `;
+      
+      console.log('Callback parameters:', { 
         code: code ? 'Present' : 'Missing', 
         state: state ? `Present (${state.length} chars)` : 'Missing',
         error: spotifyError || 'None' 
@@ -31,25 +41,37 @@
         throw new Error('No authorization code received from Spotify');
       }
       
-      // Verify state is present
-      if (!state) {
-        throw new Error('No state parameter received from Spotify');
+      console.log('Starting handleCallback with code');
+      
+      // Handle callback - try with state if present, otherwise without
+      if (state) {
+        await handleCallback(code, state);
+      } else {
+        // @ts-ignore - Type safety for backward compatibility
+        await handleCallback(code);
       }
       
-      // Process the callback - will throw error if state format is invalid
-      await handleCallback(code, state);
+      console.log('Callback handled successfully, isPremium:', $isPremium);
       
-      // Check if user has premium - we need to wait for the store to update
+      // Add small delay to allow stores to update
       setTimeout(() => {
-        // Check premium status and redirect accordingly
-        if ($isPremium) {
-          // Premium user - go to game
-          window.location.href = '/game';
-        } else {
-          // Non-premium user - go to home with message
-          window.location.href = '/?error=premium_required';
+        try {
+          // Check premium status and redirect accordingly
+          if ($isPremium) {
+            // Premium user - go to game
+            console.log('User has premium, redirecting to game page');
+            window.location.href = '/game';
+          } else {
+            // Non-premium user - go to home with message
+            console.log('User does NOT have premium, redirecting to home');
+            window.location.href = '/?error=premium_required';
+          }
+        } catch (finalErr) {
+          console.error('Error in redirect logic:', finalErr);
+          error = 'Error during redirect after authentication';
+          isLoading = false;
         }
-      }, 500);
+      }, 1000);
       
     } catch (err) {
       console.error('Callback error:', err);
@@ -69,7 +91,18 @@
   });
   
   function tryAgain() {
-    // Simple redirect to home, no storage clearing needed with new approach
+    // Clear any persisted state
+    try {
+      localStorage.removeItem('code_verifier');
+      localStorage.removeItem('spotify_auth_state');
+      localStorage.removeItem('spotify_access_token');
+      localStorage.removeItem('spotify_refresh_token');
+      localStorage.removeItem('spotify_token_expires');
+    } catch (e) {
+      console.warn('Failed to clear storage:', e);
+    }
+    
+    // Simple redirect to home
     window.location.href = '/';
   }
 </script>
@@ -89,6 +122,11 @@
       {#if detailedError}
         <p class="error-detail">{detailedError}</p>
       {/if}
+      
+      <details class="debug-details">
+        <summary>Debug Information</summary>
+        <pre>{debugInfo}</pre>
+      </details>
       
       <div class="actions">
         <button class="action-button" on:click={tryAgain}>
@@ -137,6 +175,28 @@
   .error-detail {
     opacity: 0.8;
     margin-bottom: 1.5rem;
+  }
+  
+  .debug-details {
+    margin: 1rem 0;
+    text-align: left;
+  }
+  
+  .debug-details summary {
+    cursor: pointer;
+    color: #666;
+    font-size: 0.9rem;
+  }
+  
+  .debug-details pre {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    text-align: left;
+    white-space: pre-wrap;
+    margin-top: 0.5rem;
   }
   
   .actions {
