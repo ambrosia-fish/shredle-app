@@ -1,3 +1,4 @@
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -30,7 +31,7 @@
 </script>
 
 <div class="home-container">
-  <h1>Guitar Solo Guesser</h1>
+  <h1>Shredle</h1>
   <p>Test your knowledge of famous guitar solos!</p>
   
   <div class="desktop-only-notice">
