@@ -27,7 +27,7 @@
   // Audio processing
   let audioContext: AudioContext | null = null;
   let audioSource: MediaElementAudioSourceNode | null = null;
-  let filterEnabled = false;
+  let filterEnabled = true; // Start with filter enabled
   let audioFilterNodes: any = null;
   
   // Track load timeout
@@ -56,7 +56,12 @@
     const unsubscribeFilter = guitarFilterEnabled.subscribe(value => {
       filterEnabled = value;
       if (audioSource && audioFilterNodes) {
-        toggleGuitarFilter(audioSource, filterEnabled);
+        try {
+          toggleGuitarFilter(audioSource, filterEnabled);
+          debugInfo += `Filter ${filterEnabled ? 'enabled' : 'disabled'}\n`;
+        } catch (err) {
+          debugInfo += `Error toggling filter: ${err}\n`;
+        }
       }
     });
     
@@ -212,6 +217,9 @@
               isTrackLoaded = true;
               loadingProgress = 100;
               isLoading = false;
+              
+              // Set up audio processing
+              setupAudioProcessing();
             }
           }, 5000);
         } else {
@@ -259,8 +267,9 @@
         let playerFrame = null;
         
         for (const frame of frames) {
-          if (frame.src.includes('spotify.com')) {
+          if (frame.src && frame.src.includes('spotify.com')) {
             playerFrame = frame;
+            debugInfo += `Found Spotify iframe: ${frame.src}\n`;
             break;
           }
         }
@@ -275,26 +284,38 @@
               setupFilterForElement(audioElement);
               debugInfo += "Found and connected to Spotify player audio element\n";
             } else {
-              debugInfo += "No audio elements found in Spotify player\n";
+              debugInfo += "No audio elements found in Spotify player iframe\n";
+              tryAlternativeAudioConnection();
             }
           } catch (e) {
             debugInfo += `Cannot access iframe content (expected for cross-origin): ${e}\n`;
-            
-            // Alternative: Create a dummy audio element to test the filters
-            const dummyAudio = document.createElement('audio');
-            dummyAudio.id = 'spotify-dummy';
-            dummyAudio.style.display = 'none';
-            document.body.appendChild(dummyAudio);
-            
-            debugInfo += "Created dummy audio element for filter testing\n";
+            tryAlternativeAudioConnection();
           }
         } else {
           debugInfo += "No Spotify iframe found\n";
+          tryAlternativeAudioConnection();
         }
       }, 1000);
     } catch (err) {
       debugInfo += `Audio processing setup error: ${err}\n`;
     }
+  }
+  
+  // Alternative approach when we can't access the iframe directly
+  function tryAlternativeAudioConnection() {
+    debugInfo += "Trying alternative audio connection method...\n";
+    
+    // Create a dummy audio element to route audio through
+    const dummyAudio = document.createElement('audio');
+    dummyAudio.id = 'spotify-dummy';
+    dummyAudio.style.display = 'none';
+    dummyAudio.crossOrigin = 'anonymous'; // Important for processing
+    document.body.appendChild(dummyAudio);
+    
+    // Set up filter for this element
+    setupFilterForElement(dummyAudio);
+    
+    debugInfo += "Created dummy audio element for filter testing\n";
   }
   
   // Set up audio filter for an audio element
@@ -315,8 +336,14 @@
       // Create filter nodes
       audioFilterNodes = createGuitarFilter();
       
-      // Initial connection (bypass filter until enabled)
-      audioSource.connect(audioContext.destination);
+      // Connect based on current filter state (enabled by default)
+      if (filterEnabled) {
+        audioSource.connect(audioFilterNodes.input);
+        debugInfo += "Connected audio source to filter (enabled)\n";
+      } else {
+        audioSource.connect(audioContext.destination);
+        debugInfo += "Connected audio source directly to output (filter bypassed)\n";
+      }
       
       debugInfo += "Audio filter setup complete\n";
     } catch (err) {
