@@ -1,3 +1,4 @@
+
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { accessToken } from '$lib/services/spotifyAuth';
@@ -104,7 +105,7 @@
       
       // Create hidden player instance
       player = new Spotify.Player({
-        name: 'Guitar Solo Guesser',
+        name: 'Shredle',
         getOAuthToken: cb => cb(token),
         volume: 0.8
       });
