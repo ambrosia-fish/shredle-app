@@ -6,14 +6,13 @@ export const isAuthenticated = writable(false);
 export const accessToken = writable('');
 
 // Spotify authorization variables
-const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${window.location.origin}/callback`;
+// Hardcoded client ID since it's public information and safe to include in client code
+const clientId = 'ae13f4b403584b2f8d8bce37273a1686';
+// Dynamic redirect URI that works across all environments
+const redirectUri = `${window.location.origin}/callback`;
 
 // We need streaming scope for Web Player SDK
 const scopes = ['streaming', 'user-read-email', 'user-read-private', 'user-modify-playback-state'];
-
-// New approach: bypass browser storage entirely for auth flow
-// Instead, encode everything necessary in the state parameter
 
 // Simple login function using PKCE (no client secret needed in frontend)
 export async function loginWithSpotify() {
@@ -48,6 +47,7 @@ export async function loginWithSpotify() {
     
     // Log what we're doing for debugging
     console.log('Redirecting to Spotify with encoded state parameter (StatePart:CodeVerifier)');
+    console.log('Using redirect URI:', redirectUri);
     
     // Redirect to Spotify login
     window.location.href = authUrl.toString();
@@ -95,6 +95,7 @@ export async function handleCallback(code, state) {
     
     // Exchange code for tokens using PKCE
     console.log('Starting token exchange with code verifier');
+    console.log('Using redirect URI for token exchange:', redirectUri);
     
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
