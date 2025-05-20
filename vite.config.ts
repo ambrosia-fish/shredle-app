@@ -6,7 +6,8 @@ export default defineConfig({
   server: {
     allowedHosts: [
       'localhost',
-      '8bde-68-0-249-64.ngrok-free.app'
+      '8bde-68-0-249-64.ngrok-free.app',
+	  'https://shredle-api-edb6bd99cbdf.herokuapp.com'
     ]
   }
 });
