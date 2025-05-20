@@ -2,10 +2,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { accessToken } from '$lib/services/spotifyAuth';
-  import { guitarFilterEnabled, filterIntensity, 
-          initAudioContext, createGuitarFilter, 
-          toggleGuitarFilter, cleanupAudioFilter } from '$lib/services/audioFilter';
-  import GuitarFilter from './GuitarFilter.svelte';
   
   // Props
   export let spotifyId: string = '';
@@ -24,12 +20,6 @@
   let loadingProgress: number = 0;
   let debugInfo: string = '';
   
-  // Audio processing
-  let audioContext: AudioContext | null = null;
-  let audioSource: MediaElementAudioSourceNode | null = null;
-  let filterEnabled = true; // Start with filter enabled
-  let audioFilterNodes: any = null;
-  
   // Track load timeout
   let loadTimeout: any = null;
   
@@ -43,49 +33,12 @@
     
     // Set up loading animation
     startLoadingAnimation();
-    
-    // Initialize audio context (can't be done until user interaction)
-    try {
-      audioContext = initAudioContext();
-      debugInfo += "Audio context initialized\n";
-    } catch (err) {
-      debugInfo += `Audio context init error: ${err}\n`;
-    }
-    
-    // Subscribe to filter enabled changes
-    const unsubscribeFilter = guitarFilterEnabled.subscribe(value => {
-      filterEnabled = value;
-      if (audioSource && audioFilterNodes) {
-        try {
-          toggleGuitarFilter(audioSource, filterEnabled);
-          debugInfo += `Filter ${filterEnabled ? 'enabled' : 'disabled'}\n`;
-        } catch (err) {
-          debugInfo += `Error toggling filter: ${err}\n`;
-        }
-      }
-    });
-    
-    // Subscribe to filter intensity changes
-    const unsubscribeIntensity = filterIntensity.subscribe(value => {
-      if (audioFilterNodes && audioFilterNodes.updateIntensity) {
-        audioFilterNodes.updateIntensity(value);
-      }
-    });
-    
-    // Clean up subscriptions on destroy
-    onDestroy(() => {
-      unsubscribeFilter();
-      unsubscribeIntensity();
-    });
   });
   
   onDestroy(() => {
     if (player) {
       player.disconnect();
     }
-    
-    // Clean up audio filter
-    cleanupAudioFilter();
     
     // Clear any timeouts
     if (loadTimeout) {
@@ -191,9 +144,6 @@
             isTrackLoaded = true;
             loadingProgress = 100;
             isLoading = false;
-            
-            // Set up audio processing when track is loaded
-            setupAudioProcessing();
           }
         }
       });
@@ -217,9 +167,6 @@
               isTrackLoaded = true;
               loadingProgress = 100;
               isLoading = false;
-              
-              // Set up audio processing
-              setupAudioProcessing();
             }
           }, 5000);
         } else {
@@ -253,101 +200,6 @@
       debugInfo += `Player initialization failed: ${err.message}\n`;
       error = `Player initialization failed: ${err.message}`;
       isLoading = false;
-    }
-  }
-  
-  // Set up audio processing for the hidden Spotify Web Player element
-  function setupAudioProcessing() {
-    try {
-      // Find the Spotify Web Player's hidden iframe and access its audio element
-      // This is a bit hacky but necessary to intercept the audio
-      setTimeout(() => {
-        // Wait a bit for the player to fully initialize
-        const frames = document.querySelectorAll('iframe');
-        let playerFrame = null;
-        
-        for (const frame of frames) {
-          if (frame.src && frame.src.includes('spotify.com')) {
-            playerFrame = frame;
-            debugInfo += `Found Spotify iframe: ${frame.src}\n`;
-            break;
-          }
-        }
-        
-        if (playerFrame) {
-          try {
-            // Attempt to access the iframe content (may fail due to cross-origin)
-            const audioElements = playerFrame.contentDocument?.querySelectorAll('audio');
-            
-            if (audioElements && audioElements.length > 0) {
-              const audioElement = audioElements[0];
-              setupFilterForElement(audioElement);
-              debugInfo += "Found and connected to Spotify player audio element\n";
-            } else {
-              debugInfo += "No audio elements found in Spotify player iframe\n";
-              tryAlternativeAudioConnection();
-            }
-          } catch (e) {
-            debugInfo += `Cannot access iframe content (expected for cross-origin): ${e}\n`;
-            tryAlternativeAudioConnection();
-          }
-        } else {
-          debugInfo += "No Spotify iframe found\n";
-          tryAlternativeAudioConnection();
-        }
-      }, 1000);
-    } catch (err) {
-      debugInfo += `Audio processing setup error: ${err}\n`;
-    }
-  }
-  
-  // Alternative approach when we can't access the iframe directly
-  function tryAlternativeAudioConnection() {
-    debugInfo += "Trying alternative audio connection method...\n";
-    
-    // Create a dummy audio element to route audio through
-    const dummyAudio = document.createElement('audio');
-    dummyAudio.id = 'spotify-dummy';
-    dummyAudio.style.display = 'none';
-    dummyAudio.crossOrigin = 'anonymous'; // Important for processing
-    document.body.appendChild(dummyAudio);
-    
-    // Set up filter for this element
-    setupFilterForElement(dummyAudio);
-    
-    debugInfo += "Created dummy audio element for filter testing\n";
-  }
-  
-  // Set up audio filter for an audio element
-  function setupFilterForElement(element) {
-    if (!audioContext) {
-      try {
-        audioContext = initAudioContext();
-      } catch (err) {
-        debugInfo += `Failed to initialize audio context: ${err}\n`;
-        return;
-      }
-    }
-    
-    try {
-      // Create audio source from element
-      audioSource = audioContext.createMediaElementSource(element);
-      
-      // Create filter nodes
-      audioFilterNodes = createGuitarFilter();
-      
-      // Connect based on current filter state (enabled by default)
-      if (filterEnabled) {
-        audioSource.connect(audioFilterNodes.input);
-        debugInfo += "Connected audio source to filter (enabled)\n";
-      } else {
-        audioSource.connect(audioContext.destination);
-        debugInfo += "Connected audio source directly to output (filter bypassed)\n";
-      }
-      
-      debugInfo += "Audio filter setup complete\n";
-    } catch (err) {
-      debugInfo += `Filter setup error: ${err}\n`;
     }
   }
   
@@ -447,9 +299,6 @@
       <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {:else if isReady}
-    <!-- Guitar Filter UI -->
-    <GuitarFilter />
-    
     <div class="controls">
       <button 
         class="play-button" 

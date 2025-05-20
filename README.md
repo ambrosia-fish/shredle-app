@@ -1,62 +1,38 @@
-# Guitar Solo Guesser (Shredle)
+# sv
 
-A daily guessing game inspired by Wordle/Heardle, focusing on guitar solos. Listen to famous guitar solos and try to guess the song title within 4 attempts.
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-## Features
+## Creating a project
 
-- Daily guitar solo challenge with progressive hints
-- Spotify Premium integration for high-quality audio playback
-- **Guitar Focus Filter**: Enhance guitar frequencies in the mix to help isolate the solo
-- Progressive reveal system: get more of the solo with each incorrect guess
-- Score tracking and sharing functionality
-
-## Guitar Focus Filter
-
-The Guitar Focus Filter is a real-time audio processing feature that helps highlight guitar parts in the mix. This feature:
-
-- Uses a multi-band EQ approach to enhance frequencies typical of guitar solos (500Hz-3kHz)
-- Reduces frequencies where vocals and other instruments typically dominate
-- Adjustable intensity slider for fine-tuning the effect
-- Works in real-time with Spotify playback
-- Enabled by default to provide the optimal guitar listening experience
-
-This feature makes it easier to hear the nuances of guitar solos, especially in complex mixes where multiple instruments are playing simultaneously.
-
-## Development
-
-This project is built with:
-
-- **Frontend**: Svelte/SvelteKit
-- **Backend**: ASP.NET Core API
-- **Audio**: Spotify Web Playback SDK + Web Audio API
-
-### Running Locally
+If you're seeing this, you've probably already done this step. Congrats!
 
 ```bash
-# Clone the repository
-git clone https://github.com/ambrosia-fish/shredle-app.git
+# create a new project in the current directory
+npx sv create
 
-# Install dependencies
-cd shredle-app
-npm install
+# create a new project in my-app
+npx sv create my-app
+```
 
-# Start development server
+## Developing
+
+Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+
+```bash
 npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
 ```
 
-### Environment Variables
+## Building
 
-Create a `.env` file with:
+To create a production version of your app:
 
+```bash
+npm run build
 ```
-VITE_SPOTIFY_CLIENT_ID=your_client_id
-VITE_SPOTIFY_REDIRECT_URI=http://localhost:5173/callback
-```
 
-## Contributing
+You can preview the production build with `npm run preview`.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
