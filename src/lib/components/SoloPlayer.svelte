@@ -22,6 +22,7 @@
   let loadTimeout: any = null;
   
   onMount(() => {
+    console.log('Mounting SoloPlayer component...');
     // Load Spotify Web Player SDK
     loadSpotifySDK();
     
@@ -30,8 +31,13 @@
   });
   
   onDestroy(() => {
+    console.log('Destroying SoloPlayer component...');
     if (player) {
-      player.disconnect();
+      try {
+        player.disconnect();
+      } catch (e) {
+        console.error('Error disconnecting player:', e);
+      }
     }
     
     // Clear any timeouts
@@ -60,36 +66,49 @@
   }
   
   function loadSpotifySDK() {
-    // Check if SDK is already loaded
-    if (window.Spotify && window.Spotify.Player) {
-      initPlayer();
-      return;
-    }
-    
-    // Load the SDK script
-    const script = document.createElement('script');
-    script.src = 'https://sdk.scdn.co/spotify-player.js';
-    script.async = true;
-    
-    script.onerror = () => {
-      error = 'Failed to load Spotify Web Player SDK';
+    try {
+      // Check if SDK is already loaded
+      if (window.Spotify && window.Spotify.Player) {
+        console.log('Spotify SDK already loaded');
+        initPlayer();
+        return;
+      }
+      
+      console.log('Loading Spotify SDK script...');
+      // Load the SDK script
+      const script = document.createElement('script');
+      script.src = 'https://sdk.scdn.co/spotify-player.js';
+      script.async = true;
+      
+      script.onerror = () => {
+        console.error('Failed to load Spotify Web Player SDK');
+        error = 'Failed to load Spotify Web Player SDK';
+        isLoading = false;
+      };
+      
+      document.body.appendChild(script);
+      
+      // Set up SDK ready callback
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        console.log('Spotify SDK ready');
+        initPlayer();
+      };
+    } catch (err) {
+      console.error('Error loading Spotify SDK:', err);
+      error = `Failed to load Spotify player: ${err.message}`;
       isLoading = false;
-    };
-    
-    document.body.appendChild(script);
-    
-    // Set up SDK ready callback
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      initPlayer();
-    };
+    }
   }
   
   function initPlayer() {
     try {
+      console.log('Initializing Spotify player...');
+      
       // Get token from store
       const token = $accessToken;
       
       if (!token) {
+        console.error('No access token available');
         error = 'No access token available';
         isLoading = false;
         return;
@@ -106,31 +125,38 @@
       
       // Error handling
       player.addListener('initialization_error', ({ message }) => {
+        console.error('Player initialization error:', message);
         error = `Player initialization error: ${message}`;
         isLoading = false;
       });
       
       player.addListener('authentication_error', ({ message }) => {
+        console.error('Authentication error:', message);
         error = `Authentication error: ${message}`;
         isLoading = false;
       });
       
       player.addListener('account_error', ({ message }) => {
+        console.error('Premium account required:', message);
         error = `Premium account required: ${message}`;
         isLoading = false;
       });
       
       player.addListener('playback_error', ({ message }) => {
+        console.error('Playback error:', message);
         error = `Playback error: ${message}`;
       });
       
       // State change handler
       player.addListener('player_state_changed', state => {
+        console.log('Player state changed:', state ? `paused: ${state.paused}` : 'no state');
+        
         if (state) {
           isPlaying = !state.paused;
           
           // When we get a player state change, it means the track has loaded
           if (!isTrackLoaded) {
+            console.log('Track loaded successfully');
             isTrackLoaded = true;
             loadingProgress = 100;
             isLoading = false;
@@ -152,6 +178,7 @@
           // Set a timeout for loading in case player_state_changed is never fired
           loadTimeout = setTimeout(() => {
             if (isLoading) {
+              console.log('Force completing track load after timeout');
               // Force loading to complete after 5 seconds as a fallback
               isTrackLoaded = true;
               loadingProgress = 100;
@@ -164,19 +191,25 @@
       });
       
       // Connect the player
+      console.log('Connecting to Spotify player...');
       player.connect()
         .then(success => {
           if (!success) {
+            console.error('Failed to connect to Spotify');
             error = 'Failed to connect to Spotify';
             isLoading = false;
+          } else {
+            console.log('Successfully connected to Spotify');
           }
         })
         .catch(err => {
+          console.error('Connection error:', err);
           error = `Connection error: ${err.message}`;
           isLoading = false;
         });
         
     } catch (err) {
+      console.error('Player initialization failed:', err);
       error = `Player initialization failed: ${err.message}`;
       isLoading = false;
     }
@@ -186,6 +219,7 @@
     if (!isReady || !deviceId || !spotifyId) return;
     
     try {
+      console.log(`Preloading track: ${spotifyId} at position: ${startTimeMs}ms`);
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -218,6 +252,8 @@
     if (!isReady || !deviceId || !spotifyId) return;
     
     try {
+      console.log(`Playing solo: ${spotifyId} at position: ${startTimeMs}ms for ${clipDurationMs}ms`);
+      
       // If we're already playing, reset to start position
       if (isPlaying) {
         await fetch(`https://api.spotify.com/v1/me/player/seek?device_id=${deviceId}&position_ms=${startTimeMs}`, {
@@ -252,18 +288,21 @@
       }, clipDurationMs);
       
     } catch (err) {
+      console.error('Playback error:', err);
       error = `Playback error: ${err.message}`;
     }
   }
   
   function pauseSolo() {
     if (player && isPlaying) {
+      console.log('Pausing playback');
       player.pause();
       isPlaying = false;
     }
   }
   
   function restartSolo() {
+    console.log('Restarting solo');
     pauseSolo();
     setTimeout(() => {
       playSolo();
@@ -293,12 +332,12 @@
       >
         {#if isPlaying}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-             <rect x="6" y="4" width="4" height="16" />
-             <rect x="14" y="4" width="4" height="16" />
+              <rect x="6" y="4" width="4" height="16" />
+              <rect x="14" y="4" width="4" height="16" />
           </svg>
         {:else}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-             <polygon points="5,3 19,12 5,21" />
+              <polygon points="5,3 19,12 5,21" />
           </svg>
         {/if}
       </button>
