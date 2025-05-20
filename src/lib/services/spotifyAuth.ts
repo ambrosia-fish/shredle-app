@@ -1,9 +1,6 @@
 // src/lib/services/spotifyAuth.ts
-import { writable } from 'svelte/store';
-
-// Simple auth stores
-export const isAuthenticated = writable(false);
-export const accessToken = writable('');
+import { isAuthenticated, accessToken, isPremium, userProfile } from '../stores/auth';
+import { get } from 'svelte/store';
 
 // Spotify authorization variables
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
@@ -132,6 +129,9 @@ export async function handleCallback(code, state) {
     accessToken.set(data.access_token);
     isAuthenticated.set(true);
     
+    // Fetch user profile to check premium status
+    await fetchUserProfile();
+    
     return true;
   } catch (error) {
     console.error('Token exchange error:', error);
@@ -148,6 +148,12 @@ export function checkAuth() {
     if (token && expiry && Date.now() < parseInt(expiry)) {
       accessToken.set(token);
       isAuthenticated.set(true);
+      
+      // Fetch user profile to ensure we have premium status
+      fetchUserProfile().catch(err => {
+        console.error('Error fetching profile during auth check:', err);
+      });
+      
       return true;
     }
   } catch (e) {
@@ -155,6 +161,54 @@ export function checkAuth() {
   }
   
   return false;
+}
+
+// Fetch user profile and check premium status
+export async function fetchUserProfile() {
+  const token = get(accessToken);
+  
+  if (!token) {
+    isAuthenticated.set(false);
+    isPremium.set(false);
+    return null;
+  }
+  
+  try {
+    const response = await fetch('https://api.spotify.com/v1/me', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch profile: ${response.status}`);
+    }
+    
+    const profile = await response.json();
+    
+    // Store the user profile
+    userProfile.set(profile);
+    
+    // Check if user has premium
+    if (profile.product === 'premium') {
+      isPremium.set(true);
+      return profile;
+    } else {
+      // Not premium
+      isPremium.set(false);
+      return { error: 'premium_required', profile };
+    }
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    isPremium.set(false);
+    return null;
+  }
+}
+
+// Helper for token refresh - can be implemented later if needed
+export async function refreshToken() {
+  // Implement token refresh using the refresh token from localStorage
+  // This would be similar to the token exchange but with grant_type=refresh_token
 }
 
 // Helper to generate random string for state and code verifier
