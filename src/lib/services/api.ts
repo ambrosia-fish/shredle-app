@@ -1,8 +1,8 @@
 // src/lib/services/api.ts
 import type { GameStateResponse, GuessRequest } from '../types/api';
 
-// Update API base URL to point to local development server
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5130';
+// Update API base URL to support both local development and production
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://shredle-api-edb6bd99cbdf.herokuapp.com';
 
 export async function getDailySolo(guessCount = 0): Promise<GameStateResponse> {
   console.log(`Fetching daily solo from: ${API_BASE_URL}/api/game/daily`);
