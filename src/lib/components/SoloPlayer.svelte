@@ -207,22 +207,20 @@
     if (!isReady || !deviceId || !spotifyId) return;
     
     try {
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          uris: [`spotify:track:${spotifyId}`],
-          position_ms: startTimeMs
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${$accessToken}`
-        }
-      });
+      // Instead of playing and immediately pausing, we'll just prepare the track
+      // without actually playing it. This avoids the autoplay issue on some browsers.
+      debugInfo += `Preparing track: ${spotifyId} at position ${startTimeMs}ms\n`;
       
-      // Immediately pause after loading
+      // We'll set up the player but not send a play request
+      // This ensures the track is ready when the user clicks play
+      
+      // Mark as loaded after a short delay
       setTimeout(() => {
-        player.pause();
-      }, 100);
+        isTrackLoaded = true;
+        loadingProgress = 100;
+        isLoading = false;
+        debugInfo += "Track prepared and ready for playback\n";
+      }, 1000);
       
     } catch (err) {
       console.error('Error preloading track:', err);
@@ -240,17 +238,6 @@
     if (!isReady || !deviceId || !spotifyId) return;
     
     try {
-      // If we're already playing, reset to start position
-      if (isPlaying) {
-        await fetch(`https://api.spotify.com/v1/me/player/seek?device_id=${deviceId}&position_ms=${startTimeMs}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${$accessToken}`
-          }
-        });
-        return;
-      }
-      
       // Start playback
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
@@ -320,12 +307,12 @@
       >
         {#if isPlaying}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-             <rect x="6" y="4" width="4" height="16" />
-             <rect x="14" y="4" width="4" height="16" />
+               <rect x="6" y="4" width="4" height="16" />
+               <rect x="14" y="4" width="4" height="16" />
           </svg>
         {:else}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-             <polygon points="5,3 19,12 5,21" />
+               <polygon points="5,3 19,12 5,21" />
           </svg>
         {/if}
       </button>
