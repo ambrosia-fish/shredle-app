@@ -1,9 +1,9 @@
 // src/lib/services/audioFilter.ts
 import { writable } from 'svelte/store';
 
-// Guitar filter settings store
-export const guitarFilterEnabled = writable(false);
-export const filterIntensity = writable(50); // 0-100 range
+// Guitar filter settings store - enabled by default
+export const guitarFilterEnabled = writable(true);
+export const filterIntensity = writable(70); // 0-100 range
 
 // Create AudioNode types for TypeScript
 type AudioFilterNodes = {
