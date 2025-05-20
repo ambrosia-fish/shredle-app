@@ -4,16 +4,6 @@
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width" />
-		<script>
-			// Define global objects and callback for Spotify SDK
-			window.SpotifyPlayerSDKReady = false;
-			
-			window.onSpotifyWebPlaybackSDKReady = function() {
-				console.log("[Spotify] SDK Ready");
-				window.SpotifyPlayerSDKReady = true;
-			};
-		</script>
-		<script src="https://sdk.scdn.co/spotify-player.js"></script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
