@@ -157,6 +157,26 @@ export function checkAuth() {
   return false;
 }
 
+// Logout function - clear all auth data
+export function logout() {
+  try {
+    // Clear all Spotify-related data from localStorage
+    localStorage.removeItem('spotify_access_token');
+    localStorage.removeItem('spotify_refresh_token');
+    localStorage.removeItem('spotify_token_expires');
+    
+    // Reset stores
+    accessToken.set('');
+    isAuthenticated.set(false);
+    
+    console.log('User logged out successfully');
+    return true;
+  } catch (e) {
+    console.error('Error during logout:', e);
+    return false;
+  }
+}
+
 // Helper to generate random string for state and code verifier
 function generateRandomString(length) {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
