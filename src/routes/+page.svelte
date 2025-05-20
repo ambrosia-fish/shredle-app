@@ -33,6 +33,10 @@
   <h1>Guitar Solo Guesser</h1>
   <p>Test your knowledge of famous guitar solos!</p>
   
+  <div class="desktop-only-notice">
+    <p>⚠️ This app currently works on desktop browsers only ⚠️</p>
+  </div>
+  
   {#if isLoading}
     <div class="loading">Checking login status...</div>
   {:else if authError}
@@ -55,6 +59,7 @@
       <li>Each wrong guess reveals more of the solo</li>
     </ol>
     <p class="note">Note: Requires Spotify Premium to use the player</p>
+    <p class="note">Desktop browser required - mobile is not supported</p>
   </div>
 </div>
 
@@ -77,6 +82,22 @@
   p {
     margin-bottom: 2rem;
     font-size: 1.2rem;
+  }
+  
+  .desktop-only-notice {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    max-width: 400px;
+    font-weight: bold;
+  }
+  
+  .desktop-only-notice p {
+    margin-bottom: 0;
+    font-size: 1rem;
   }
   
   .login-button {
@@ -155,6 +176,6 @@
     font-size: 0.9rem;
     opacity: 0.8;
     font-style: italic;
-    margin-bottom: 0;
+    margin-bottom: 0.5rem;
   }
 </style>
