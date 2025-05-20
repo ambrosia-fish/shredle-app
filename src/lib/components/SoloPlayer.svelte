@@ -17,11 +17,16 @@
   let error: string = '';
   let loadingMessage: string = 'Initializing player...';
   let loadingProgress: number = 0;
+  let debugInfo: string = '';
   
   // Track load timeout
   let loadTimeout: any = null;
   
   onMount(() => {
+    // Log some debug info
+    debugInfo = `Auth token: ${$accessToken ? 'Present (length: ' + $accessToken.length + ')' : 'Missing'}\n`;
+    debugInfo += `Track ID: ${spotifyId}\n`;
+    
     // Load Spotify Web Player SDK
     loadSpotifySDK();
     
@@ -104,23 +109,27 @@
         volume: 0.8
       });
       
-      // Error handling
+      // Error handling with improved logging
       player.addListener('initialization_error', ({ message }) => {
+        debugInfo += `Initialization error: ${message}\n`;
         error = `Player initialization error: ${message}`;
         isLoading = false;
       });
       
       player.addListener('authentication_error', ({ message }) => {
+        debugInfo += `Authentication error: ${message}\n`;
         error = `Authentication error: ${message}`;
         isLoading = false;
       });
       
       player.addListener('account_error', ({ message }) => {
+        debugInfo += `Account error: ${message}\n`;
         error = `Premium account required: ${message}`;
         isLoading = false;
       });
       
       player.addListener('playback_error', ({ message }) => {
+        debugInfo += `Playback error: ${message}\n`;
         error = `Playback error: ${message}`;
       });
       
@@ -141,6 +150,7 @@
       // When player is ready
       player.addListener('ready', ({ device_id }) => {
         console.log('Player ready with device ID:', device_id);
+        debugInfo += `Player ready with device ID: ${device_id}\n`;
         deviceId = device_id;
         isReady = true;
         
@@ -163,20 +173,30 @@
         }
       });
       
+      // Not ready - important for debugging
+      player.addListener('not_ready', ({ device_id }) => {
+        debugInfo += `Player not ready. Device ID: ${device_id}\n`;
+      });
+      
       // Connect the player
       player.connect()
         .then(success => {
           if (!success) {
+            debugInfo += 'Failed to connect to Spotify\n';
             error = 'Failed to connect to Spotify';
             isLoading = false;
+          } else {
+            debugInfo += 'Successfully connected to Spotify\n';
           }
         })
         .catch(err => {
+          debugInfo += `Connection error: ${err.message}\n`;
           error = `Connection error: ${err.message}`;
           isLoading = false;
         });
         
     } catch (err) {
+      debugInfo += `Player initialization failed: ${err.message}\n`;
       error = `Player initialization failed: ${err.message}`;
       isLoading = false;
     }
@@ -205,6 +225,7 @@
       
     } catch (err) {
       console.error('Error preloading track:', err);
+      debugInfo += `Error preloading track: ${err.message || err}\n`;
       
       // Still allow playback attempt even if preload fails
       isTrackLoaded = true;
@@ -252,6 +273,7 @@
       }, clipDurationMs);
       
     } catch (err) {
+      debugInfo += `Playback error: ${err.message || err}\n`;
       error = `Playback error: ${err.message}`;
     }
   }
@@ -282,6 +304,10 @@
   {:else if error}
     <div class="error">
       <p>{error}</p>
+      <details class="debug-details">
+        <summary>Debug Information</summary>
+        <pre class="debug-log">{debugInfo}</pre>
+      </details>
       <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {:else if isReady}
@@ -318,6 +344,10 @@
   {:else}
     <div class="error">
       <p>Unable to initialize player. Please make sure you have a Spotify Premium account.</p>
+      <details class="debug-details">
+        <summary>Debug Information</summary>
+        <pre class="debug-log">{debugInfo}</pre>
+      </details>
       <button on:click={() => window.location.reload()}>Try Again</button>
     </div>
   {/if}
@@ -410,5 +440,22 @@
     margin-top: 1rem;
     font-size: 0.9rem;
     color: #999;
+  }
+  
+  .debug-details {
+    margin: 1rem 0;
+    text-align: left;
+    cursor: pointer;
+  }
+  
+  .debug-log {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 1rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    max-height: 200px;
+    white-space: pre-wrap;
+    text-align: left;
   }
 </style>
