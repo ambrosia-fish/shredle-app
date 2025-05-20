@@ -1,3 +1,4 @@
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { handleCallback } from '$lib/services/spotifyAuth';
@@ -38,8 +39,9 @@
       // Process the callback - will throw error if state format is invalid
       await handleCallback(code, state);
       
-      // Redirect to game page on success
-      window.location.href = '/game';
+      // Redirect to game page on success - using current origin
+      const currentOrigin = window.location.origin;
+      window.location.href = `${currentOrigin}/game`;
       
     } catch (err) {
       console.error('Callback error:', err);
@@ -59,8 +61,9 @@
   });
   
   function tryAgain() {
-    // Simple redirect to home, no storage clearing needed with new approach
-    window.location.href = '/';
+    // Simple redirect to home, maintaining current origin
+    const currentOrigin = window.location.origin;
+    window.location.href = `${currentOrigin}/`;
   }
 </script>
 
