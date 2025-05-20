@@ -68,6 +68,7 @@
   }
   
   function handleLogout() {
+    console.log('Logging out...');
     logout();
     window.location.href = '/';
   }
@@ -77,7 +78,7 @@
 </script>
 
 <div class="game-container">
-  <div class="header">
+  <div class="header-container">
     <h1>Guitar Solo Guesser</h1>
     <button class="logout-button" on:click={handleLogout}>Logout</button>
   </div>
@@ -128,20 +129,24 @@
     flex-direction: column;
     align-items: center;
     padding: 2rem 1rem;
+    width: 100%;
+    max-width: 100%;
   }
   
-  .header {
+  .header-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
     max-width: 600px;
     margin-bottom: 2rem;
+    position: relative;
   }
   
   h1 {
     margin: 0;
     text-align: center;
+    flex-grow: 1;
   }
   
   .logout-button {
@@ -152,6 +157,8 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
+    position: absolute;
+    right: 0;
   }
   
   .logout-button:hover {
