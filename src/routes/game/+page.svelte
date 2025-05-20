@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { checkAuth } from '$lib/services/spotifyAuth';
+  import { checkAuth, logout } from '$lib/services/spotifyAuth';
   import { getDailySolo, submitGuess } from '$lib/services/api';
   import { updateGameState, gameState, currentSolo, attemptsRemaining } from '$lib/stores/game';
   import SoloPlayer from '$lib/components/SoloPlayer.svelte';
@@ -66,10 +66,28 @@
       isSubmitting = false;
     }
   }
+  
+  function handleLogout() {
+    logout();
+    window.location.href = '/';
+  }
+  
+  // Check if user is on mobile device
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 </script>
 
 <div class="game-container">
-  <h1>Guitar Solo Guesser</h1>
+  <div class="header">
+    <h1>Guitar Solo Guesser</h1>
+    <button class="logout-button" on:click={handleLogout}>Logout</button>
+  </div>
+  
+  {#if isMobile}
+    <div class="mobile-warning">
+      <p>⚠️ This app currently works on desktop browsers only ⚠️</p>
+      <p>Please visit from a desktop to play.</p>
+    </div>
+  {/if}
   
   {#if isLoading}
     <div class="loading">Loading today's guitar solo...</div>
@@ -80,11 +98,18 @@
     </div>
   {:else}
     <div class="game-content">
-      <SoloPlayer 
-        spotifyId={$currentSolo.spotifyId}
-        startTimeMs={$currentSolo.soloStartTimeMs}
-        clipDurationMs={$currentSolo.clipDurationMs}
-      />
+      {#if isMobile}
+        <div class="player-disabled">
+          <p>Player disabled on mobile devices</p>
+          <p class="desktop-note">Please use a desktop browser to play the game</p>
+        </div>
+      {:else}
+        <SoloPlayer 
+          spotifyId={$currentSolo.spotifyId}
+          startTimeMs={$currentSolo.soloStartTimeMs}
+          clipDurationMs={$currentSolo.clipDurationMs}
+         />
+      {/if}
       
       <GuessForm 
         solo={$currentSolo}
@@ -105,9 +130,47 @@
     padding: 2rem 1rem;
   }
   
-  h1 {
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
     margin-bottom: 2rem;
+  }
+  
+  h1 {
+    margin: 0;
     text-align: center;
+  }
+  
+  .logout-button {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  
+  .logout-button:hover {
+    background: #555;
+  }
+  
+  .mobile-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    max-width: 500px;
+    text-align: center;
+  }
+  
+  .mobile-warning p {
+    margin: 0.5rem 0;
   }
   
   .loading, .error {
@@ -129,5 +192,24 @@
   .game-content {
     width: 100%;
     max-width: 600px;
+  }
+  
+  .player-disabled {
+    background-color: rgba(189, 195, 199, 0.3);
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  
+  .player-disabled p {
+    margin: 0.5rem 0;
+    font-weight: bold;
+  }
+  
+  .desktop-note {
+    font-size: 0.9rem;
+    font-style: italic;
+    opacity: 0.8;
   }
 </style>
