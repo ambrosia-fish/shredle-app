@@ -1,4 +1,3 @@
-
 <script lang="ts">
   import { onMount } from 'svelte';
   import { handleCallback } from '$lib/services/spotifyAuth';
@@ -6,6 +5,7 @@
   let isLoading = true;
   let error = '';
   let detailedError = '';
+  let closedBetaError = false;
   
   onMount(async () => {
     try {
@@ -47,8 +47,15 @@
       console.error('Callback error:', err);
       error = err.message || 'Authentication failed';
       
-      // Provide more helpful error messages
-      if (error.includes('state')) {
+      // Check for access-related errors
+      if (error.includes('access denied') || 
+          error.includes('invalid_client') ||
+          error.includes('access_denied')) {
+        closedBetaError = true;
+        detailedError = 'Your Spotify account is not on the approved list for this closed beta. Please email josef@feztech.io to request access.';
+      }
+      // Provide more helpful error messages for other issues
+      else if (error.includes('state')) {
         detailedError = 'There was a problem with the authentication process. This can happen if you refresh the page during login or if your browser blocks certain features.';
       } else if (error.includes('Token exchange failed')) {
         detailedError = 'There was a problem communicating with Spotify. Please try again in a moment.';
@@ -79,7 +86,13 @@
       <h2>Authentication Error</h2>
       <p class="error-main">{error}</p>
       
-      {#if detailedError}
+      {#if closedBetaError}
+        <div class="closed-beta-notice">
+          <p class="beta-badge">CLOSED BETA</p>
+          <p>{detailedError}</p>
+          <a href="mailto:josef@feztech.io" class="contact-link">Email to request access</a>
+        </div>
+      {:else if detailedError}
         <p class="error-detail">{detailedError}</p>
       {/if}
       
@@ -130,6 +143,36 @@
   .error-detail {
     opacity: 0.8;
     margin-bottom: 1.5rem;
+  }
+  
+  .closed-beta-notice {
+    background-color: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    color: #3498db;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+  }
+  
+  .beta-badge {
+    background-color: #3498db;
+    color: white;
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+  
+  .contact-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #3498db;
+    text-decoration: underline;
+    font-weight: bold;
   }
   
   .actions {
