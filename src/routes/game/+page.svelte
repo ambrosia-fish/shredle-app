@@ -76,6 +76,9 @@
   
   // Check if user is on mobile device
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  // Detect browser type
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 </script>
 
 <div class="game-container">
@@ -86,8 +89,13 @@
   
   {#if isMobile}
     <div class="mobile-warning">
-      <p>⚠️ This app currently works on desktop browsers only ⚠️</p>
+      <p>⚠️ This app works best on desktop Chrome or Firefox ⚠️</p>
       <p>Please visit from a desktop to play.</p>
+    </div>
+  {:else if isSafari}
+    <div class="browser-warning">
+      <p>⚠️ Safari has limited support for Spotify playback ⚠️</p>
+      <p>For the best experience, please use Chrome or Firefox.</p>
     </div>
   {/if}
   
@@ -110,7 +118,7 @@
           spotifyId={$currentSolo.spotifyId}
           startTimeMs={$currentSolo.soloStartTimeMs}
           clipDurationMs={$currentSolo.clipDurationMs}
-         />
+        />
       {/if}
       
       <GuessForm 
@@ -166,7 +174,7 @@
     background: #555;
   }
   
-  .mobile-warning {
+  .mobile-warning, .browser-warning {
     background-color: #fff3cd;
     color: #856404;
     border: 1px solid #ffeeba;
@@ -177,7 +185,7 @@
     text-align: center;
   }
   
-  .mobile-warning p {
+  .mobile-warning p, .browser-warning p {
     margin: 0.5rem 0;
   }
   
