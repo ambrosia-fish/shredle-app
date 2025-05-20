@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { handleCallback } from '$lib/services/spotifyAuth';
+  import { isPremium } from '$lib/stores/auth';
   
   let isLoading = true;
   let error = '';
@@ -38,8 +39,17 @@
       // Process the callback - will throw error if state format is invalid
       await handleCallback(code, state);
       
-      // Redirect to game page on success
-      window.location.href = '/game';
+      // Check if user has premium - we need to wait for the store to update
+      setTimeout(() => {
+        // Check premium status and redirect accordingly
+        if ($isPremium) {
+          // Premium user - go to game
+          window.location.href = '/game';
+        } else {
+          // Non-premium user - go to home with message
+          window.location.href = '/?error=premium_required';
+        }
+      }, 500);
       
     } catch (err) {
       console.error('Callback error:', err);
