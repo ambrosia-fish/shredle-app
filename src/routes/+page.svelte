@@ -35,7 +35,8 @@
   <p>Test your knowledge of famous guitar solos!</p>
   
   <div class="desktop-only-notice">
-    <p>⚠️ This app currently works on desktop browsers only ⚠️</p>
+    <p>⚠️ This app works best in Chrome or Firefox browsers ⚠️</p>
+    <p class="browser-note">Safari users may experience playback issues</p>
   </div>
   
   <div class="restricted-access-notice">
@@ -105,6 +106,13 @@
   .desktop-only-notice p {
     margin-bottom: 0;
     font-size: 1rem;
+  }
+  
+  .browser-note {
+    font-size: 0.85rem !important;
+    font-weight: normal;
+    margin-top: 0.5rem;
+    margin-bottom: 0 !important;
   }
   
   .restricted-access-notice {
