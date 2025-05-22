@@ -1,5 +1,5 @@
 // src/lib/spotify.ts
-import { PUBLIC_SPOTIFY_CLIENT_ID } from '$env/static/public';
+import { PUBLIC_SPOTIFY_CLIENT_ID, PUBLIC_REDIRECT_URL } from '$env/static/public';
 
 interface SpotifyPlayer {
   connect(): Promise<boolean>;
@@ -48,8 +48,8 @@ export function getSpotifyToken(): string | null {
 }
 
 export async function loginToSpotify(): Promise<void> {
-  const clientId = PUBLIC_SPOTIFY_CLIENT_ID;
-  const redirectUri = 'https://ca11-68-0-249-64.ngrok-free.app';
+  const clientId = PUBLIC_SPOTIFY_CLIENT_ID || 'ae13f4b403584b2f8d8bce37273a1686';
+  const redirectUri = PUBLIC_REDIRECT_URL || 'https://shredle.feztech.io/';
   const scopes = 'streaming user-read-email user-read-private';
   
   // Generate PKCE codes
@@ -81,6 +81,9 @@ export async function handleSpotifyCallback(): Promise<void> {
       // Decode the code verifier from the state parameter
       const codeVerifier = atob(state);
       
+      const clientId = PUBLIC_SPOTIFY_CLIENT_ID || 'ae13f4b403584b2f8d8bce37273a1686';
+      const redirectUri = PUBLIC_REDIRECT_URL || 'https://shredle.feztech.io/';
+      
       // Exchange code for access token
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
@@ -90,8 +93,8 @@ export async function handleSpotifyCallback(): Promise<void> {
         body: new URLSearchParams({
           grant_type: 'authorization_code',
           code: code,
-          redirect_uri: 'https://ca11-68-0-249-64.ngrok-free.app',
-          client_id: PUBLIC_SPOTIFY_CLIENT_ID,
+          redirect_uri: redirectUri,
+          client_id: clientId,
           code_verifier: codeVerifier,
         }),
       });
