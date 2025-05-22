@@ -18,6 +18,18 @@ declare global {
   }
 }
 
+// Set up the callback before the SDK loads
+let spotifySDKReady = false;
+let spotifySDKResolve: (() => void) | null = null;
+
+// Define the callback globally
+window.onSpotifyWebPlaybackSDKReady = () => {
+  spotifySDKReady = true;
+  if (spotifySDKResolve) {
+    spotifySDKResolve();
+  }
+};
+
 // PKCE helper functions
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32);
@@ -50,7 +62,8 @@ export function getSpotifyToken(): string | null {
 export async function loginToSpotify(): Promise<void> {
   const clientId = PUBLIC_SPOTIFY_CLIENT_ID || 'ae13f4b403584b2f8d8bce37273a1686';
   const redirectUri = PUBLIC_REDIRECT_URL || 'https://shredle.feztech.io/';
-  const scopes = 'streaming user-read-email user-read-private';
+  // Add web-playback scope for Spotify Web Playback SDK
+  const scopes = 'streaming user-read-email user-read-private web-playback user-modify-playback-state';
   
   // Generate PKCE codes
   const codeVerifier = generateCodeVerifier();
@@ -119,14 +132,12 @@ export async function handleSpotifyCallback(): Promise<void> {
 // Wait for Spotify SDK to load
 function waitForSpotifySDK(): Promise<void> {
   return new Promise((resolve) => {
-    if (window.Spotify) {
+    if (spotifySDKReady && window.Spotify) {
       resolve();
       return;
     }
     
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      resolve();
-    };
+    spotifySDKResolve = resolve;
   });
 }
 
@@ -145,12 +156,37 @@ export async function initializeSpotifyPlayer(): Promise<SpotifyPlayer> {
       getOAuthToken: (cb: (token: string) => void) => { cb(token); }
     });
 
+    // Add error event listeners
+    player.addListener('initialization_error', ({ message }) => {
+      console.error('Spotify initialization error:', message);
+      reject(`Initialization error: ${message}`);
+    });
+
+    player.addListener('authentication_error', ({ message }) => {
+      console.error('Spotify authentication error:', message);
+      reject(`Authentication error: ${message}`);
+    });
+
+    player.addListener('account_error', ({ message }) => {
+      console.error('Spotify account error:', message);
+      reject(`Account error: ${message}`);
+    });
+
+    player.addListener('playback_error', ({ message }) => {
+      console.error('Spotify playback error:', message);
+      reject(`Playback error: ${message}`);
+    });
+
     player.connect().then((success: boolean) => {
       if (success) {
+        console.log('Successfully connected to Spotify player');
         resolve(player);
       } else {
         reject('Failed to connect Spotify player');
       }
+    }).catch((error) => {
+      console.error('Error connecting to Spotify player:', error);
+      reject(`Connection error: ${error}`);
     });
   });
 }
