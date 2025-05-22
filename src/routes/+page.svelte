@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { isSpotifyLoggedIn, loginToSpotify, handleSpotifyCallback, initializeSpotifyPlayer } from '$lib/spotify';
   import { getSpotifyErrorMessage, activatePlayerForMobile } from '$lib/spotify-utils';
+  import { playTrackSegment, transferPlaybackToDevice } from '$lib/spotify-playback';
   import { getDailyGame, getSolo, submitGuess } from '$lib/api';
   import type { Game, Solo } from '$lib/types';
   
@@ -16,7 +17,9 @@
   let guesses: string[] = [];
   let currentGuess = '';
   let player: any = null;
+  let deviceId = '';
   let errorMessage = '';
+  let isPlaying = false;
   
   // Handle Spotify callback and login check
   async function checkAuthAndLoadGame() {
@@ -63,6 +66,14 @@
       console.log('Initializing Spotify player...');
       player = await initializeSpotifyPlayer();
       
+      // Set up player event listeners to get device ID
+      player.addListener('ready', ({ device_id }) => {
+        console.log('Spotify player ready with device ID:', device_id);
+        deviceId = device_id;
+        // Transfer playback to our device
+        transferPlaybackToDevice(device_id).catch(console.warn);
+      });
+      
       gameStatus = 'playing';
     } catch (error) {
       console.error('Failed to load game:', error);
@@ -99,20 +110,61 @@
   }
   
   async function playClip(clipNumber: number) {
-    if (!player) {
-      console.error('No player available');
+    if (!player || !deviceId || !currentSolo || isPlaying) {
+      console.error('Cannot play clip: missing player, device ID, or solo data');
       return;
     }
     
     try {
+      isPlaying = true;
+      errorMessage = ''; // Clear any previous errors
+      
       // Activate player for mobile browsers on user interaction
       await activatePlayerForMobile(player);
       
-      // TODO: Implement clip playback
-      console.log(`Playing clip ${clipNumber}`);
+      // Get the appropriate clip timing based on clip number
+      let startTime: number, endTime: number;
+      
+      switch (clipNumber) {
+        case 1:
+          startTime = currentSolo.startTimeClip1;
+          endTime = currentSolo.endTimeClip1;
+          break;
+        case 2:
+          startTime = currentSolo.startTimeClip2;
+          endTime = currentSolo.endTimeClip2;
+          break;
+        case 3:
+          startTime = currentSolo.startTimeClip3;
+          endTime = currentSolo.endTimeClip3;
+          break;
+        case 4:
+          startTime = currentSolo.startTimeClip4;
+          endTime = currentSolo.endTimeClip4;
+          break;
+        default:
+          throw new Error('Invalid clip number');
+      }
+      
+      console.log(`Playing clip ${clipNumber}: ${startTime}s to ${endTime}s`);
+      
+      await playTrackSegment({
+        deviceId,
+        spotifyTrackId: currentSolo.spotifyId,
+        startTime,
+        endTime
+      });
+      
+      // Reset playing state after the clip duration
+      const clipDuration = (endTime - startTime) * 1000;
+      setTimeout(() => {
+        isPlaying = false;
+      }, clipDuration + 500); // Add small buffer
+      
     } catch (error) {
       console.error('Failed to play clip:', error);
-      errorMessage = 'Failed to play audio clip. Please try again.';
+      errorMessage = `Failed to play clip ${clipNumber}. Make sure Spotify is active and try again.`;
+      isPlaying = false;
     }
   }
   
@@ -171,15 +223,27 @@
         </div>
       {/if}
       
+      <!-- Device Status (for debugging) -->
+      {#if deviceId}
+        <div class="device-status">
+          🎵 Connected to Spotify Player
+        </div>
+      {/if}
+      
       <!-- Play Buttons -->
       <div class="play-buttons">
         {#each Array(4) as _, i}
           <button 
             on:click={() => playClip(i + 1)}
-            disabled={i + 1 > currentAttempt}
-            class:active={i + 1 <= currentAttempt}
+            disabled={i + 1 > currentAttempt || isPlaying || !deviceId}
+            class:active={i + 1 <= currentAttempt && !isPlaying && deviceId}
+            class:playing={isPlaying}
           >
-            Play Clip {i + 1}
+            {#if isPlaying}
+              Playing...
+            {:else}
+              Play Clip {i + 1}
+            {/if}
           </button>
         {/each}
       </div>
@@ -190,8 +254,9 @@
           bind:value={currentGuess}
           placeholder="Enter your guess..."
           on:keydown={(e) => e.key === 'Enter' && handleGuess()}
+          disabled={isPlaying}
         />
-        <button on:click={handleGuess} disabled={!currentGuess.trim()}>
+        <button on:click={handleGuess} disabled={!currentGuess.trim() || isPlaying}>
           Submit Guess ({currentAttempt}/4)
         </button>
       </div>
@@ -251,6 +316,16 @@
     color: #666;
     font-size: 0.9rem;
     margin: 0.5rem 0;
+  }
+  
+  .device-status {
+    background: #e8f5e8;
+    color: #2d5a2d;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    display: inline-block;
+    margin: 1rem 0;
+    font-size: 0.9rem;
   }
   
   .loading-spinner {
@@ -356,6 +431,7 @@
     cursor: not-allowed;
     font-size: 0.9rem;
     min-width: 100px;
+    transition: all 0.2s;
   }
   
   .play-buttons button.active {
@@ -367,6 +443,20 @@
   
   .play-buttons button.active:hover {
     background: #1ed760;
+  }
+  
+  .play-buttons button.playing {
+    background: #ff9500;
+    border-color: #ff9500;
+    color: white;
+    cursor: not-allowed;
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
   }
   
   .guess-form {
