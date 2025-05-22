@@ -20,13 +20,29 @@
   let deviceId = '';
   let errorMessage = '';
   let isPlaying = false;
+  let isInitialized = false;
+  let isProcessingCallback = false;
   
   // Handle Spotify callback and login check
   async function checkAuthAndLoadGame() {
     try {
-      // Handle Spotify callback if code is present
+      // Prevent multiple simultaneous initializations
+      if (isInitialized || isProcessingCallback) {
+        return;
+      }
+
+      // Check if we're processing a Spotify callback
       if ($page.url.searchParams.has('code')) {
+        isProcessingCallback = true;
+        gameStatus = 'loading';
+        errorMessage = ''; // Clear any previous errors
+        
+        console.log('Processing Spotify callback...');
         await handleSpotifyCallback();
+        
+        // Small delay to ensure token is stored
+        await new Promise(resolve => setTimeout(resolve, 100));
+        isProcessingCallback = false;
       }
       
       // Check login status
@@ -36,15 +52,21 @@
       if (spotifyLoggedIn) {
         await loadGame();
       }
+      
+      isInitialized = true;
     } catch (error) {
       console.error('Auth/Load error:', error);
       errorMessage = getSpotifyErrorMessage(error instanceof Error ? error.message : String(error));
       gameStatus = 'error';
+      isProcessingCallback = false;
+      isInitialized = true;
     }
   }
   
   // This runs after every navigation (including initial load and redirects)
   afterNavigate(async () => {
+    // Reset initialization state on navigation
+    isInitialized = false;
     await checkAuthAndLoadGame();
   });
   
@@ -56,7 +78,9 @@
   async function loadGame() {
     try {
       gameStatus = 'loading';
-      errorMessage = '';
+      errorMessage = ''; // Clear errors when starting fresh
+      
+      console.log('Loading game data...');
       
       // Load game data
       currentGame = await getDailyGame();
@@ -71,10 +95,14 @@
         console.log('Spotify player ready with device ID:', device_id);
         deviceId = device_id;
         // Transfer playback to our device
-        transferPlaybackToDevice(device_id).catch(console.warn);
+        transferPlaybackToDevice(device_id).catch(err => {
+          console.warn('Failed to transfer playback:', err);
+          // Don't show error to user as this is not critical
+        });
       });
       
       gameStatus = 'playing';
+      console.log('Game loaded successfully');
     } catch (error) {
       console.error('Failed to load game:', error);
       errorMessage = getSpotifyErrorMessage(error instanceof Error ? error.message : String(error));
@@ -179,10 +207,16 @@
   function clearError() {
     errorMessage = '';
   }
+
+  function retry() {
+    errorMessage = '';
+    isInitialized = false;
+    checkAuthAndLoadGame();
+  }
 </script>
 
 <main>
-  {#if !spotifyLoggedIn}
+  {#if !spotifyLoggedIn && !isProcessingCallback}
     <!-- Login Screen -->
     <div class="login-screen">
       <h1>Welcome to Shredle!</h1>
@@ -191,10 +225,16 @@
       <button on:click={loginToSpotify}>Login with Spotify</button>
     </div>
     
-  {:else if gameStatus === 'loading'}
+  {:else if gameStatus === 'loading' || isProcessingCallback}
     <!-- Loading Screen -->
     <div class="loading-screen">
-      <p>Loading today's challenge...</p>
+      <p>
+        {#if isProcessingCallback}
+          Completing Spotify login...
+        {:else}
+          Loading today's challenge...
+        {/if}
+      </p>
       <div class="loading-spinner"></div>
     </div>
     
@@ -204,8 +244,12 @@
       <h2>Oops! Something went wrong</h2>
       <p class="error-message">{errorMessage}</p>
       <div class="error-actions">
-        <button on:click={loadGame} class="retry-btn">Try Again</button>
-        <button on:click={() => { spotifyLoggedIn = false; localStorage.removeItem('spotify_access_token'); }} class="logout-btn">
+        <button on:click={retry} class="retry-btn">Try Again</button>
+        <button on:click={() => { 
+          spotifyLoggedIn = false; 
+          localStorage.removeItem('spotify_access_token');
+          isInitialized = false;
+        }} class="logout-btn">
           Login Again
         </button>
       </div>
@@ -223,10 +267,14 @@
         </div>
       {/if}
       
-      <!-- Device Status (for debugging) -->
+      <!-- Device Status -->
       {#if deviceId}
         <div class="device-status">
           🎵 Connected to Spotify Player
+        </div>
+      {:else}
+        <div class="device-status connecting">
+          🔄 Connecting to Spotify...
         </div>
       {/if}
       
@@ -326,6 +374,11 @@
     display: inline-block;
     margin: 1rem 0;
     font-size: 0.9rem;
+  }
+  
+  .device-status.connecting {
+    background: #fff3cd;
+    color: #856404;
   }
   
   .loading-spinner {
