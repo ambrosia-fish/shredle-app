@@ -22,6 +22,7 @@
   let isPlaying = false;
   let isInitialized = false;
   let isProcessingCallback = false;
+  let isSubmittingGuess = false;
   
   // Handle Spotify callback and login check
   async function checkAuthAndLoadGame() {
@@ -111,9 +112,13 @@
   }
   
   async function handleGuess() {
-    if (!currentGame || !currentSolo || !currentGuess.trim()) return;
+    if (!currentGame || !currentSolo || !currentGuess.trim() || isSubmittingGuess) return;
     
     try {
+      isSubmittingGuess = true;
+      
+      console.log('Submitting guess:', currentGuess.trim());
+      
       const response = await submitGuess({
         gameId: currentGame.id,
         soloId: currentSolo.id,
@@ -134,6 +139,8 @@
     } catch (error) {
       console.error('Failed to submit guess:', error);
       errorMessage = 'Failed to submit guess. Please try again.';
+    } finally {
+      isSubmittingGuess = false;
     }
   }
   
@@ -213,6 +220,13 @@
     isInitialized = false;
     checkAuthAndLoadGame();
   }
+
+  // Handle Enter key for guess submission
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !isSubmittingGuess) {
+      handleGuess();
+    }
+  }
 </script>
 
 <main>
@@ -283,8 +297,8 @@
         {#each Array(4) as _, i}
           <button 
             on:click={() => playClip(i + 1)}
-            disabled={i + 1 > currentAttempt || isPlaying || !deviceId}
-            class:active={i + 1 <= currentAttempt && !isPlaying && deviceId}
+            disabled={i + 1 > currentAttempt || isPlaying || !deviceId || isSubmittingGuess}
+            class:active={i + 1 <= currentAttempt && !isPlaying && deviceId && !isSubmittingGuess}
             class:playing={isPlaying}
           >
             {#if isPlaying}
@@ -301,11 +315,19 @@
         <input 
           bind:value={currentGuess}
           placeholder="Enter your guess..."
-          on:keydown={(e) => e.key === 'Enter' && handleGuess()}
-          disabled={isPlaying}
+          on:keydown={handleKeydown}
+          disabled={isPlaying || isSubmittingGuess}
         />
-        <button on:click={handleGuess} disabled={!currentGuess.trim() || isPlaying}>
-          Submit Guess ({currentAttempt}/4)
+        <button 
+          on:click={handleGuess} 
+          disabled={!currentGuess.trim() || isPlaying || isSubmittingGuess}
+          class:submitting={isSubmittingGuess}
+        >
+          {#if isSubmittingGuess}
+            Submitting...
+          {:else}
+            Submit Guess ({currentAttempt}/4)
+          {/if}
         </button>
       </div>
       
@@ -528,6 +550,12 @@
     min-width: 200px;
   }
   
+  .guess-form input:disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+  }
+  
   .guess-form button {
     padding: 0.75rem 1.5rem;
     background: #1db954;
@@ -536,6 +564,8 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
+    transition: all 0.2s;
+    min-width: 140px; /* Ensure consistent width */
   }
   
   .guess-form button:disabled {
@@ -543,7 +573,12 @@
     cursor: not-allowed;
   }
   
-  .guess-form button:not(:disabled):hover {
+  .guess-form button.submitting {
+    background: #17a2b8;
+    cursor: not-allowed;
+  }
+  
+  .guess-form button:not(:disabled):not(.submitting):hover {
     background: #1ed760;
   }
   
