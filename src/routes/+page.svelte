@@ -233,6 +233,24 @@
     checkAuthAndLoadGame();
   }
 
+  // Logout function
+  function logout() {
+    spotifyLoggedIn = false;
+    localStorage.removeItem('spotify_access_token');
+    localStorage.removeItem('spotify_refresh_token');
+    localStorage.removeItem('spotify_token_expires');
+    isInitialized = false;
+    gameStatus = 'loading';
+    currentGame = null;
+    currentSolo = null;
+    currentAttempt = 1;
+    guesses = [];
+    currentGuess = '';
+    player = null;
+    deviceId = '';
+    errorMessage = '';
+  }
+
   // Handle Enter key for guess submission
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && !isSubmittingGuess) {
@@ -247,7 +265,7 @@
     <div class="login-screen">
       <h1>Welcome to Shredle!</h1>
       <p>Guess the guitar solo in 4 tries</p>
-      <p class="premium-note">⭐ Spotify Premium required</p>
+      <p class="premium-note">⚠ Spotify Premium required</p>
       <button on:click={loginToSpotify}>Login with Spotify</button>
     </div>
     
@@ -284,7 +302,10 @@
   {:else if gameStatus === 'playing'}
     <!-- Game Screen -->
     <div class="game-screen">
-      <h1>Daily Shredle</h1>
+      <div class="game-header">
+        <h1>Daily Shredle</h1>
+        <button class="logout-button" on:click={logout}>Logout</button>
+      </div>
       
       {#if errorMessage}
         <div class="error-banner">
@@ -307,18 +328,24 @@
       <!-- Play Buttons -->
       <div class="play-buttons">
         {#each Array(4) as _, i}
-          <button 
-            on:click={() => playClip(i + 1)}
-            disabled={i + 1 > currentAttempt || isPlaying || !deviceId || isSubmittingGuess}
-            class:active={i + 1 <= currentAttempt && !isPlaying && deviceId && !isSubmittingGuess}
-            class:playing={isPlaying}
-          >
-            {#if isPlaying}
-              Playing...
-            {:else}
-              Play Clip {i + 1}
-            {/if}
-          </button>
+          {#if i + 1 <= currentAttempt}
+            <button 
+              on:click={() => playClip(i + 1)}
+              disabled={isPlaying || !deviceId || isSubmittingGuess}
+              class:active={!isPlaying && deviceId && !isSubmittingGuess}
+              class:playing={isPlaying}
+            >
+              {#if isPlaying}
+                🔊 Playing...
+              {:else}
+                ▶️ Clip {i + 1}
+              {/if}
+            </button>
+          {:else}
+            <div class="clip-placeholder">
+              🔒 Clip {i + 1}
+            </div>
+          {/if}
         {/each}
       </div>
       
@@ -398,6 +425,32 @@
     color: #666;
     font-size: 0.9rem;
     margin: 0.5rem 0;
+  }
+
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .game-header h1 {
+    margin: 0;
+  }
+
+  .logout-button {
+    background: #ff6666;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+  }
+
+  .logout-button:hover {
+    background: #ff5555;
   }
   
   .device-status {
@@ -511,14 +564,20 @@
   
   .play-buttons button {
     padding: 1rem;
-    border: 2px solid #ddd;
-    background: #f5f5f5;
-    color: #666;
+    border: 2px solid #1db954;
+    background: #1db954;
+    color: white;
     border-radius: 8px;
-    cursor: not-allowed;
+    cursor: pointer;
     font-size: 0.9rem;
     min-width: 100px;
     transition: all 0.2s;
+  }
+
+  .play-buttons button:disabled {
+    background: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
   }
   
   .play-buttons button.active {
@@ -538,6 +597,19 @@
     color: white;
     cursor: not-allowed;
     animation: pulse 1.5s infinite;
+  }
+
+  .clip-placeholder {
+    padding: 1rem;
+    border: 2px solid #ddd;
+    background: #f5f5f5;
+    color: #999;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    min-width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   @keyframes pulse {
