@@ -1,7 +1,7 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { Game, Solo, GuessRequest, GuessResponse } from './types';
 
-// Use Heroku app URL as the base API URL
+// Use environment variable for API base URL
 const API_BASE = PUBLIC_API_BASE_URL || 'https://shredle-api-8c4e31b5e8e1.herokuapp.com/api';
 
 export async function getDailyGame(): Promise<Game> {
