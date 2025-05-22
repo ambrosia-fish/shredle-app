@@ -116,14 +116,30 @@ export async function handleSpotifyCallback(): Promise<void> {
   }
 }
 
-export function initializeSpotifyPlayer(): Promise<SpotifyPlayer> {
-  return new Promise((resolve, reject) => {
-    const token = getSpotifyToken();
-    if (!token) {
-      reject('No Spotify token available');
+// Wait for Spotify SDK to load
+function waitForSpotifySDK(): Promise<void> {
+  return new Promise((resolve) => {
+    if (window.Spotify) {
+      resolve();
       return;
     }
+    
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      resolve();
+    };
+  });
+}
 
+export async function initializeSpotifyPlayer(): Promise<SpotifyPlayer> {
+  const token = getSpotifyToken();
+  if (!token) {
+    throw new Error('No Spotify token available');
+  }
+
+  // Wait for Spotify SDK to be ready
+  await waitForSpotifySDK();
+
+  return new Promise((resolve, reject) => {
     const player = new window.Spotify.Player({
       name: 'Shredle Game Player',
       getOAuthToken: (cb: (token: string) => void) => { cb(token); }
