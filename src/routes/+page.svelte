@@ -308,89 +308,118 @@
     clipTimeouts = [];
   }
   
+  // Get clip duration from solo data
+  function getClipDuration(clipNumber: number): number {
+    if (!currentSolo) return 2; // Default fallback
+    
+    let startTime: number, endTime: number;
+    
+    switch (clipNumber) {
+      case 1:
+        startTime = currentSolo.startTimeClip1;
+        endTime = currentSolo.endTimeClip1;
+        break;
+      case 2:
+        startTime = currentSolo.startTimeClip2;
+        endTime = currentSolo.endTimeClip2;
+        break;
+      case 3:
+        startTime = currentSolo.startTimeClip3;
+        endTime = currentSolo.endTimeClip3;
+        break;
+      case 4:
+        startTime = currentSolo.startTimeClip4;
+        endTime = currentSolo.endTimeClip4;
+        break;
+      default:
+        return 2; // Default fallback
+    }
+    
+    return endTime - startTime;
+  }
+  
   async function playClip(clipNumber: number) {
     const clipIndex = clipNumber - 1;
     
-    // Set visual feedback immediately for THIS specific button
+    // Clear any existing timeouts
     clearAllClipTimeouts();
+    
+    // Set visual feedback immediately for THIS specific button
     playingClipStates[clipIndex] = true;
-    // Trigger reactivity
     playingClipStates = [...playingClipStates];
     errorMessage = ''; // Clear any previous errors
     
-    if (!player || !deviceId || !currentGame || !isPlayerReady) {
-      console.error('Cannot play clip: missing player, device ID, game data, or player not ready');
-      // Keep visual state for a moment to show user THIS button was clicked
-      setTimeout(() => {
-        playingClipStates[clipIndex] = false;
-        playingClipStates = [...playingClipStates];
-      }, 1000);
-      return;
-    }
+    // Get clip duration and set timeout to reset button state
+    const clipDurationSeconds = getClipDuration(clipNumber);
+    const clipDurationMs = clipDurationSeconds * 1000;
     
-    try {
-      console.log(`Fetching latest solo data for clip ${clipNumber}...`);
-      
-      // Fetch fresh solo data from server each time
-      const freshSoloData = await getSolo(currentGame.soloId);
-      
-      // Update our current solo data with the fresh data
-      currentSolo = freshSoloData;
-      
-      // Activate player for mobile browsers on user interaction
-      await activatePlayerForMobile(player);
-      
-      // Get the appropriate clip timing based on clip number
-      let startTime: number, endTime: number;
-      
-      switch (clipNumber) {
-        case 1:
-          startTime = freshSoloData.startTimeClip1;
-          endTime = freshSoloData.endTimeClip1;
-          break;
-        case 2:
-          startTime = freshSoloData.startTimeClip2;
-          endTime = freshSoloData.endTimeClip2;
-          break;
-        case 3:
-          startTime = freshSoloData.startTimeClip3;
-          endTime = freshSoloData.endTimeClip3;
-          break;
-        case 4:
-          startTime = freshSoloData.startTimeClip4;
-          endTime = freshSoloData.endTimeClip4;
-          break;
-        default:
-          throw new Error('Invalid clip number');
-      }
-      
-      console.log(`Playing clip ${clipNumber}: ${startTime}s to ${endTime}s (track: ${freshSoloData.spotifyId})`);
-      
-      await playTrackSegment({
-        deviceId,
-        spotifyTrackId: freshSoloData.spotifyId,
-        startTime,
-        endTime
-      });
-      
-      // Reset playing state after the clip duration for THIS specific button
-      const clipDuration = (endTime - startTime) * 1000;
-      const timeout = setTimeout(() => {
-        playingClipStates[clipIndex] = false;
-        playingClipStates = [...playingClipStates];
-      }, clipDuration + 500); // Add small buffer
-      
-      clipTimeouts.push(timeout);
-      
-    } catch (error) {
-      console.error('Failed to play clip:', error);
-      if (error instanceof Error && error.message.includes('fetch')) {
-        errorMessage = `Failed to load clip ${clipNumber} data. Please check your connection and try again.`;
-      } else {
-        errorMessage = `Failed to play clip ${clipNumber}. Make sure Spotify is active and try again.`;
-      }
+    console.log(`Button ${clipNumber} will stay green for ${clipDurationSeconds} seconds`);
+    
+    // Always set timeout to reset button state based on clip duration
+    const visualTimeout = setTimeout(() => {
       playingClipStates[clipIndex] = false;
       playingClipStates = [...playingClipStates];
+    }, clipDurationMs);
+    
+    clipTimeouts.push(visualTimeout);
+    
+    // Try to play audio if Spotify is ready (but don't affect button visual state)
+    if (player && deviceId && currentGame && isPlayerReady) {
+      try {
+        console.log(`Fetching latest solo data for clip ${clipNumber}...`);
+        
+        // Fetch fresh solo data from server each time
+        const freshSoloData = await getSolo(currentGame.soloId);
+        
+        // Update our current solo data with the fresh data
+        currentSolo = freshSoloData;
+        
+        // Activate player for mobile browsers on user interaction
+        await activatePlayerForMobile(player);
+        
+        // Get the appropriate clip timing based on clip number
+        let startTime: number, endTime: number;
+        
+        switch (clipNumber) {
+          case 1:
+            startTime = freshSoloData.startTimeClip1;
+            endTime = freshSoloData.endTimeClip1;
+            break;
+          case 2:
+            startTime = freshSoloData.startTimeClip2;
+            endTime = freshSoloData.endTimeClip2;
+            break;
+          case 3:
+            startTime = freshSoloData.startTimeClip3;
+            endTime = freshSoloData.endTimeClip3;
+            break;
+          case 4:
+            startTime = freshSoloData.startTimeClip4;
+            endTime = freshSoloData.endTimeClip4;
+            break;
+          default:
+            throw new Error('Invalid clip number');
+        }
+        
+        console.log(`Playing clip ${clipNumber}: ${startTime}s to ${endTime}s (track: ${freshSoloData.spotifyId})`);
+        
+        await playTrackSegment({
+          deviceId,
+          spotifyTrackId: freshSoloData.spotifyId,
+          startTime,
+          endTime
+        });
+        
+      } catch (error) {
+        console.error('Failed to play clip:', error);
+        if (error instanceof Error && error.message.includes('fetch')) {
+          errorMessage = `Failed to load clip ${clipNumber} data. Please check your connection and try again.`;
+        } else {
+          errorMessage = `Failed to play clip ${clipNumber}. Make sure Spotify is active and try again.`;
+        }
+      }
+    } else {
+      console.log('Spotify not ready, but button will still show visual feedback');
     }
   }
   
@@ -562,7 +591,7 @@
                   <div class="play-spinner"></div>
                 {:else if isPlayButtonPlaying(i)}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zM9 9l6 3-6 3V9z"/>
                   </svg>
                 {:else}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
