@@ -244,18 +244,20 @@
         
         if (!state) {
           // No state means playback stopped
-          console.log('🛑 Playback stopped - resetting button states');
+          console.log('🛑 No player state - resetting button states');
           resetAllButtonStates();
           return;
         }
         
-        const { paused, loading } = state;
+        const { paused, loading, position, duration, track_window } = state;
         
-        if (paused || loading) {
-          // Playback paused or loading
-          console.log('⏸️ Playback paused/loading - resetting button states');
+        console.log(`🎵 State: paused=${paused}, loading=${loading}, position=${position}, duration=${duration}`);
+        
+        if (paused) {
+          // Playback paused
+          console.log('⏸️ Playback paused - resetting button states');
           resetAllButtonStates();
-        } else if (currentPlayingClip >= 0) {
+        } else if (!loading && currentPlayingClip >= 0) {
           // Playback is active and we know which clip initiated it
           console.log(`🎶 Playback active for clip ${currentPlayingClip + 1}`);
           updateButtonStateForPlayback(currentPlayingClip);
@@ -345,12 +347,12 @@
     // Reset all button states first
     resetAllButtonStates();
     
-    // Set this button as playing immediately
+    // Set this button as playing immediately (optimistic update)
     currentPlayingClip = clipIndex;
     updateButtonStateForPlayback(clipIndex);
     errorMessage = ''; // Clear any previous errors
     
-    console.log(`🎯 Button ${clipNumber} state set to playing`);
+    console.log(`🎯 Button ${clipNumber} set to playing (optimistic)`);
     
     // Try to play audio if Spotify is ready
     if (player && deviceId && currentGame && isPlayerReady) {
@@ -399,6 +401,8 @@
           endTime
         });
         
+        console.log('🎶 Playback started successfully');
+        
       } catch (error) {
         console.error('Failed to play clip:', error);
         // Reset button state on error
@@ -411,7 +415,8 @@
         }
       }
     } else {
-      console.log('Spotify not ready, but button will still show visual feedback');
+      console.log('Spotify not ready, resetting optimistic state');
+      resetAllButtonStates();
     }
   }
   
@@ -921,19 +926,19 @@
     flex-shrink: 0;
   }
   
-  /* Blue when enabled/clickable */
+  /* GREEN when enabled/clickable */
   .play-btn.enabled {
-    background: #007bff !important;
+    background: #28a745 !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
   }
   
-  /* PURPLE when playing - highest priority */
+  /* BLUE when playing - highest priority */
   .play-btn.playing {
-    background: #8b5cf6 !important;
+    background: #007bff !important;
     color: white !important;
     animation: pulse 1.5s infinite;
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.4) !important;
   }
   
   /* Gray when loading */
@@ -957,8 +962,12 @@
   }
 
   .play-btn.playing:hover {
-    background: #7c3aed !important;
+    background: #0056b3 !important;
     transform: scale(1.1);
+  }
+
+  .play-btn.enabled:hover {
+    background: #218838 !important;
   }
   
   .playing-bars {
