@@ -301,30 +301,8 @@
       currentAttempt = attemptIndex + 2;
     }
   }
-
-  function stopClip() {
-    if (player && playingClipNumber > 0) {
-      player.pause();
-      playingClipNumber = 0;
-      
-      // Clear all clip timeouts
-      clipTimeouts.forEach(timeout => clearTimeout(timeout));
-      clipTimeouts = [];
-    }
-  }
   
   async function playClip(clipNumber: number) {
-    // If this clip is already playing, stop it
-    if (playingClipNumber === clipNumber) {
-      stopClip();
-      return;
-    }
-    
-    // Stop any other playing clip first
-    if (playingClipNumber > 0) {
-      stopClip();
-    }
-    
     if (!player || !deviceId || !currentGame || !isPlayerReady) {
       console.error('Cannot play clip: missing player, device ID, game data, or player not ready');
       return;
@@ -568,7 +546,7 @@
                   <div class="play-spinner"></div>
                 {:else if isPlayButtonPlaying(i)}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="6" width="12" height="12" rx="2"/>
+                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
                   </svg>
                 {:else}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -918,8 +896,10 @@
   }
   
   .play-btn.playing {
-    background: #ff9500;
+    background: #28a745 !important;
+    color: white !important;
     animation: pulse 1.5s infinite;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
   }
   
   .play-btn.loading {
@@ -941,7 +921,8 @@
   }
 
   .play-btn.playing:hover {
-    background: #e68500;
+    background: #218838 !important;
+    transform: scale(1.1);
   }
   
   .playing-bars {
