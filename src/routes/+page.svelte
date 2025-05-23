@@ -344,10 +344,6 @@
     const clipIndex = clipNumber - 1;
     
     console.log(`🎵 Play button ${clipNumber} clicked!`);
-    console.log('🔍 BEFORE - All button states:', playingClipStates);
-    console.log('🔍 BEFORE - Button clickable?', isPlayButtonClickable(clipIndex));
-    console.log('🔍 BEFORE - Button loading?', isPlayButtonLoading(clipIndex));
-    console.log('🔍 BEFORE - Guess states:', guessStates);
     
     // Clear any existing timeouts and reset all button states first
     clearAllClipTimeouts();
@@ -356,33 +352,7 @@
     playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? true : false);
     errorMessage = ''; // Clear any previous errors
     
-    console.log('🎯 AFTER STATE SET - All button states:', playingClipStates);
-    console.log('🎯 AFTER STATE SET - isPlayButtonPlaying result:', isPlayButtonPlaying(clipIndex));
-    
-    // Force Svelte reactivity
-    playingClipStates = [...playingClipStates];
-    
-    console.log('🔄 AFTER REACTIVITY FORCE - All button states:', playingClipStates);
-    
-    // Check DOM after a short delay
-    setTimeout(() => {
-      const buttons = document.querySelectorAll('.play-btn');
-      const button = buttons[clipIndex];
-      
-      console.log('🔍 DOM DEBUG for button', clipNumber + ':');
-      console.log('   - Button exists?', !!button);
-      console.log('   - Button className:', button?.className);
-      console.log('   - Has "playing" class?', button?.classList.contains('playing'));
-      console.log('   - Has "enabled" class?', button?.classList.contains('enabled'));
-      console.log('   - Computed background:', window.getComputedStyle(button).backgroundColor);
-      console.log('   - Computed color:', window.getComputedStyle(button).color);
-      console.log('   - All classes:', Array.from(button?.classList || []));
-      
-      // Check all buttons for comparison
-      buttons.forEach((btn, idx) => {
-        console.log(`   - Button ${idx + 1} classes:`, btn.className);
-      });
-    }, 100);
+    console.log(`🎯 Button ${clipNumber} state set to playing:`, playingClipStates[clipIndex]);
     
     // Get clip duration and set timeout to reset button state
     const clipDurationSeconds = getClipDuration(clipNumber);
@@ -467,11 +437,6 @@
     // Show loading for the active button while Spotify is initializing
     return isSpotifyInitializing && guessStates[index] === 'active';
   }   
-  
-  function isPlayButtonPlaying(index: number): boolean {
-    // Only THIS specific button shows playing state
-    return playingClipStates[index];
-  }
 
   function clearError() {
     errorMessage = '';
@@ -617,13 +582,13 @@
                 class="play-btn"
                 on:click={() => playClip(i + 1)}
                 disabled={isPlayButtonLoading(i)}
-                class:playing={isPlayButtonPlaying(i)}
+                class:playing={playingClipStates[i]}
                 class:enabled={isPlayButtonClickable(i) && !isPlayButtonLoading(i)}
                 class:loading={isPlayButtonLoading(i)}
               >
                 {#if isPlayButtonLoading(i)}
                   <div class="play-spinner"></div>
-                {:else if isPlayButtonPlaying(i)}
+                {:else if playingClipStates[i]}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zM9 9l6 3-6 3V9z"/>
                   </svg>
