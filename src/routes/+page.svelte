@@ -23,7 +23,7 @@
   let isProcessingCallback = false;
   let isSpotifyInitializing = false; // Track Spotify initialization state
   let isPlayerReady = false; // Track if player is ready
-  let clipTimeouts: NodeJS.Timeout[] = []; // Track clip end timeouts
+  let currentPlayingClip = -1; // Track which clip initiated current playback (-1 = none)
   
   // UI state variables
   let tickerMessage = '';
@@ -238,6 +238,30 @@
         errorMessage = 'Failed to initialize Spotify player';
       });
       
+      // Listen for player state changes to track actual playback
+      player.addListener('player_state_changed', (state) => {
+        console.log('🎵 Player state changed:', state);
+        
+        if (!state) {
+          // No state means playback stopped
+          console.log('🛑 Playback stopped - resetting button states');
+          resetAllButtonStates();
+          return;
+        }
+        
+        const { paused, loading } = state;
+        
+        if (paused || loading) {
+          // Playback paused or loading
+          console.log('⏸️ Playback paused/loading - resetting button states');
+          resetAllButtonStates();
+        } else if (currentPlayingClip >= 0) {
+          // Playback is active and we know which clip initiated it
+          console.log(`🎶 Playback active for clip ${currentPlayingClip + 1}`);
+          updateButtonStateForPlayback(currentPlayingClip);
+        }
+      });
+      
       gameStatus = 'playing';
       startTicker();
       console.log('Game loaded successfully');
@@ -248,6 +272,17 @@
       isSpotifyInitializing = false;
       isPlayerReady = false;
     }
+  }
+  
+  // Reset all button states when playback stops
+  function resetAllButtonStates() {
+    playingClipStates = [false, false, false, false];
+    currentPlayingClip = -1;
+  }
+  
+  // Update button state for active playback
+  function updateButtonStateForPlayback(clipIndex: number) {
+    playingClipStates = playingClipStates.map((_, i) => i === clipIndex);
   }
   
   async function handleGuess(attemptIndex: number) {
@@ -302,73 +337,22 @@
     }
   }
   
-  // Clear all previous timeouts and reset all button states
-  function clearAllClipTimeouts() {
-    clipTimeouts.forEach(timeout => clearTimeout(timeout));
-    clipTimeouts = [];
-    // Reset all button visual states when clearing timeouts
-    playingClipStates = [false, false, false, false];
-  }
-  
-  // Get clip duration from solo data
-  function getClipDuration(clipNumber: number): number {
-    if (!currentSolo) return 2; // Default fallback
-    
-    let startTime: number, endTime: number;
-    
-    switch (clipNumber) {
-      case 1:
-        startTime = currentSolo.startTimeClip1;
-        endTime = currentSolo.endTimeClip1;
-        break;
-      case 2:
-        startTime = currentSolo.startTimeClip2;
-        endTime = currentSolo.endTimeClip2;
-        break;
-      case 3:
-        startTime = currentSolo.startTimeClip3;
-        endTime = currentSolo.endTimeClip3;
-        break;
-      case 4:
-        startTime = currentSolo.startTimeClip4;
-        endTime = currentSolo.endTimeClip4;
-        break;
-      default:
-        return 2; // Default fallback
-    }
-    
-    return endTime - startTime;
-  }
-  
   async function playClip(clipNumber: number) {
     const clipIndex = clipNumber - 1;
     
     console.log(`🎵 Play button ${clipNumber} clicked!`);
     
-    // Clear any existing timeouts and reset all button states first
-    clearAllClipTimeouts();
+    // Reset all button states first
+    resetAllButtonStates();
     
-    // Set visual feedback immediately for THIS specific button only
-    playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? true : false);
+    // Set this button as playing immediately
+    currentPlayingClip = clipIndex;
+    updateButtonStateForPlayback(clipIndex);
     errorMessage = ''; // Clear any previous errors
     
-    console.log(`🎯 Button ${clipNumber} state set to playing:`, playingClipStates[clipIndex]);
+    console.log(`🎯 Button ${clipNumber} state set to playing`);
     
-    // Get clip duration and set timeout to reset button state
-    const clipDurationSeconds = getClipDuration(clipNumber);
-    const clipDurationMs = clipDurationSeconds * 1000;
-    
-    console.log(`⏰ Button ${clipNumber} will stay purple for ${clipDurationSeconds} seconds`);
-    
-    // Set timeout to reset this specific button state
-    const visualTimeout = setTimeout(() => {
-      playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? false : state);
-      console.log(`✅ Button ${clipNumber} reset to normal state`);
-    }, clipDurationMs);
-    
-    clipTimeouts.push(visualTimeout);
-    
-    // Try to play audio if Spotify is ready (but don't affect button visual state)
+    // Try to play audio if Spotify is ready
     if (player && deviceId && currentGame && isPlayerReady) {
       try {
         console.log(`Fetching latest solo data for clip ${clipNumber}...`);
@@ -417,6 +401,9 @@
         
       } catch (error) {
         console.error('Failed to play clip:', error);
+        // Reset button state on error
+        resetAllButtonStates();
+        
         if (error instanceof Error && error.message.includes('fetch')) {
           errorMessage = `Failed to load clip ${clipNumber} data. Please check your connection and try again.`;
         } else {
@@ -469,7 +456,7 @@
     shownHints = new Set();
     mostRecentHint = '';
     isPlayerReady = false;
-    clearAllClipTimeouts();
+    currentPlayingClip = -1;
     stopTicker();
   }
 
