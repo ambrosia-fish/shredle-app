@@ -315,12 +315,12 @@
     }
   }
   
-  // Color mapping for guess components
-  const guessColors = [
-    { bg: '#ffebee', border: '#f44336', text: '#d32f2f' }, // Red
-    { bg: '#fff3e0', border: '#ff9800', text: '#f57c00' }, // Orange  
-    { bg: '#fffde7', border: '#ffeb3b', text: '#f9a825' }, // Yellow
-    { bg: '#e8f5e8', border: '#4caf50', text: '#388e3c' }  // Green
+  // Color mapping for play buttons only
+  const playButtonColors = [
+    '#f44336', // Red
+    '#ff9800', // Orange  
+    '#ffeb3b', // Yellow
+    '#4caf50'  // Green
   ];
 </script>
 
@@ -400,13 +400,11 @@
       <!-- Guess Components -->
       <div class="guess-components">
         {#each Array(4) as _, i}
-          <div 
-            class="guess-component" 
-            style="--bg-color: {guessColors[i].bg}; --border-color: {guessColors[i].border}; --text-color: {guessColors[i].text}"
-          >
+          <div class="guess-component">
             <!-- Play Button -->
             <button 
               class="play-btn"
+              style="background-color: {playButtonColors[i]}"
               on:click={() => playClip(i + 1)}
               disabled={isPlaying || !deviceId}
               class:playing={isPlaying}
@@ -533,7 +531,7 @@
   }
 
   .ticker {
-    background: var(--bg-color, #f0f0f0);
+    background: #f0f0f0;
     padding: 0.75rem 1rem;
     border-radius: 20px;
     margin: 1rem 0;
@@ -672,8 +670,8 @@
   }
   
   .guess-component {
-    background: var(--bg-color);
-    border: 2px solid var(--border-color);
+    background: #f5f5f5;
+    border: 2px solid #ddd;
     border-radius: 12px;
     padding: 1rem;
     display: flex;
@@ -683,7 +681,6 @@
   }
   
   .play-btn {
-    background: var(--border-color);
     color: white;
     border: none;
     padding: 0.75rem 1rem;
@@ -695,12 +692,12 @@
   }
   
   .play-btn:disabled {
-    background: #ccc;
+    background: #ccc !important;
     cursor: not-allowed;
   }
   
   .play-btn.playing {
-    background: #ff9500;
+    background: #ff9500 !important;
     cursor: not-allowed;
     animation: pulse 1.5s infinite;
   }
@@ -733,9 +730,9 @@
   }
   
   .guess-input-section input.locked {
-    background: var(--bg-color);
-    border-color: var(--border-color);
-    color: var(--text-color);
+    background: #f5f5f5;
+    border-color: #ddd;
+    color: #333;
     font-weight: bold;
   }
   
@@ -744,8 +741,20 @@
     color: #999;
   }
   
-  .submit-btn, .skip-btn {
-    background: var(--border-color);
+  .submit-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-width: 70px;
+    transition: all 0.2s;
+  }
+  
+  .skip-btn {
+    background: #666;
     color: white;
     border: none;
     padding: 0.75rem 1rem;
