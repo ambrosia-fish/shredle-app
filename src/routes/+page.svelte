@@ -322,7 +322,6 @@
     <div class="login-screen">
       <div class="logo">
         <h1>Shredle</h1>
-        <div class="logo-accent">🎸</div>
       </div>
       <p class="tagline">Guess the guitar solo in 4 tries</p>
       <p class="premium-note">⚠ Spotify Premium required</p>
@@ -336,7 +335,6 @@
     <div class="loading-screen">
       <div class="logo">
         <h1>Shredle</h1>
-        <div class="logo-accent">🎸</div>
       </div>
       <p class="loading-text">
         {#if isProcessingCallback}
@@ -353,7 +351,6 @@
     <div class="error-screen">
       <div class="logo">
         <h1>Shredle</h1>
-        <div class="logo-accent">🎸</div>
       </div>
       <h2>Something went wrong</h2>
       <p class="error-message">{errorMessage}</p>
@@ -381,7 +378,6 @@
         </button>
         <div class="logo">
           <h1>Shredle</h1>
-          <div class="logo-accent">🎸</div>
         </div>
         <button class="header-btn" disabled>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -420,7 +416,12 @@
       <!-- Guess Components -->
       <div class="guess-components">
         {#each Array(4) as _, i}
-          <div class="guess-component">
+          <div 
+            class="guess-component"
+            class:active={guessStates[i] === 'active'}
+            class:locked={guessStates[i] === 'locked'}
+            class:pending={guessStates[i] === 'pending'}
+          >
             <div class="guess-row">
               <!-- Play Button -->
               <button 
@@ -437,7 +438,7 @@
                     <div></div>
                   </div>
                 {:else}
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z"/>
                   </svg>
                 {/if}
@@ -560,30 +561,21 @@
     margin: 0 auto;
     padding: 2rem 1rem;
     min-height: 100vh;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    background: #0a0a0a;
   }
   
   .logo {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
     margin-bottom: 1rem;
   }
   
   .logo h1 {
     font-size: 2.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #6366f1;
     margin: 0;
-  }
-  
-  .logo-accent {
-    font-size: 2rem;
-    filter: grayscale(1) brightness(1.2);
   }
   
   .login-screen, .loading-screen, .error-screen {
@@ -608,7 +600,7 @@
   }
   
   .login-btn {
-    background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
+    background: #1db954;
     color: white;
     border: none;
     padding: 1rem 2rem;
@@ -635,7 +627,7 @@
     width: 40px;
     height: 40px;
     border: 3px solid #333;
-    border-top: 3px solid #667eea;
+    border-top: 3px solid #6366f1;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -658,7 +650,7 @@
   }
   
   .retry-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #6366f1;
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -680,8 +672,8 @@
   }
   
   .secondary-btn:hover {
-    border-color: #667eea;
-    color: #667eea;
+    border-color: #6366f1;
+    color: #6366f1;
   }
 
   .game-header {
@@ -709,7 +701,7 @@
   }
 
   .ticker {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    background: #1a1a1a;
     color: #a0a0a0;
     padding: 1rem 1.5rem;
     border-radius: 20px;
@@ -738,7 +730,7 @@
   }
   
   .device-status.connected {
-    background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
+    background: #1db954;
     color: white;
   }
   
@@ -760,28 +752,42 @@
   .guess-components {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     margin-bottom: 2rem;
   }
   
   .guess-component {
     background: #1a1a1a;
     border: 1px solid #333;
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  
+  .guess-component.active {
+    transform: scale(1);
+    opacity: 1;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+  }
+  
+  .guess-component.locked {
+    transform: scale(1);
+    opacity: 1;
   }
   
   .guess-row {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
   }
   
   .play-btn {
-    width: 50px;
-    height: 50px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: none;
     background: #333;
@@ -791,21 +797,18 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    transform: scale(0.9);
     flex-shrink: 0;
   }
   
   .play-btn.enabled {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    background: #007bff;
     color: white;
-    transform: scale(1);
-    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
   }
   
   .play-btn.playing {
-    background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%);
+    background: #ff9500;
     animation: pulse 1.5s infinite;
-    transform: scale(1);
   }
   
   .playing-bars {
@@ -840,8 +843,8 @@
     flex: 1;
     background: #0a0a0a;
     border: 2px solid #333;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
     color: #ffffff;
     font-size: 1rem;
     transition: all 0.3s ease;
@@ -849,7 +852,7 @@
   
   .guess-row input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #6366f1;
     background: #111;
   }
   
@@ -868,78 +871,78 @@
   
   .action-buttons {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
     justify-content: center;
   }
   
   .submit-btn, .skip-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1rem;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
     font-weight: 600;
+    font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.3s ease;
-    transform: scale(0.95);
-    min-width: 80px;
+    min-width: 70px;
   }
   
   .submit-btn {
-    background: #333;
-    color: #666;
+    background: #555;
+    color: #999;
   }
   
   .submit-btn.enabled {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    background: #28a745;
     color: white;
-    transform: scale(1);
-    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
   }
   
   .skip-btn {
-    background: #333;
-    color: #666;
+    background: #555;
+    color: #999;
   }
   
   .skip-btn.enabled {
-    background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
+    background: #1a365d;
     color: white;
-    transform: scale(1);
-    box-shadow: 0 4px 15px rgba(26, 54, 93, 0.3);
+    box-shadow: 0 2px 6px rgba(26, 54, 93, 0.3);
   }
   
   .x-btn {
     background: #ff6b6b;
     color: white;
     border: none;
-    padding: 0.75rem;
-    border-radius: 12px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
     cursor: not-allowed;
-    min-width: 80px;
+    min-width: 70px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 0.9rem;
   }
   
   .placeholder-btns {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
   
   .placeholder-btn {
-    background: #1a1a1a;
+    background: #2a2a2a;
     color: #666;
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
     font-weight: 600;
-    min-width: 80px;
+    font-size: 0.9rem;
+    min-width: 70px;
     text-align: center;
   }
   
   .hint {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    background: #1a1a1a;
     border: 1px solid #333;
-    border-radius: 16px;
-    padding: 1.5rem;
+    border-radius: 12px;
+    padding: 1rem;
     margin-bottom: 2rem;
     display: flex;
     align-items: center;
@@ -1013,10 +1016,7 @@
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #6366f1;
   }
   
   .result-text {
@@ -1049,7 +1049,7 @@
   }
   
   .share-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #6366f1;
     color: white;
     border: none;
     padding: 1rem 2rem;
@@ -1060,11 +1060,11 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
   }
   
   .share-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
   }
 </style>
