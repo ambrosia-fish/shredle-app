@@ -15,14 +15,49 @@
   let currentSolo: Solo | null = null;
   let currentAttempt = 1;
   let guesses: string[] = [];
-  let currentGuess = '';
   let player: any = null;
   let deviceId = '';
   let errorMessage = '';
   let isPlaying = false;
   let isInitialized = false;
   let isProcessingCallback = false;
+  
+  // UI state variables
+  let tickerMessage = '';
+  let guessStates: ('active' | 'locked' | 'pending')[] = ['active', 'pending', 'pending', 'pending'];
+  let currentGuessInputs: string[] = ['', '', '', ''];
   let isSubmittingGuess = false;
+  
+  // Ticker functionality
+  let tickerInterval: number;
+  
+  function startTicker() {
+    let showDate = true;
+    function updateTicker() {
+      if (showDate) {
+        const today = new Date();
+        tickerMessage = today.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      } else {
+        const attemptsLeft = 4 - currentAttempt + 1;
+        tickerMessage = `${attemptsLeft} attempts left`;
+      }
+      showDate = !showDate;
+    }
+    
+    updateTicker();
+    tickerInterval = setInterval(updateTicker, 3000);
+  }
+  
+  function stopTicker() {
+    if (tickerInterval) {
+      clearInterval(tickerInterval);
+    }
+  }
   
   // Handle Spotify callback and login check
   async function checkAuthAndLoadGame() {
@@ -103,6 +138,7 @@
       });
       
       gameStatus = 'playing';
+      startTicker();
       console.log('Game loaded successfully');
     } catch (error) {
       console.error('Failed to load game:', error);
@@ -111,36 +147,55 @@
     }
   }
   
-  async function handleGuess() {
-    if (!currentGame || !currentSolo || !currentGuess.trim() || isSubmittingGuess) return;
+  async function handleGuess(attemptIndex: number) {
+    if (!currentGame || !currentSolo || !currentGuessInputs[attemptIndex].trim() || isSubmittingGuess) return;
     
     try {
       isSubmittingGuess = true;
       
-      console.log('Submitting guess:', currentGuess.trim());
+      console.log('Submitting guess:', currentGuessInputs[attemptIndex].trim());
       
       const response = await submitGuess({
         gameId: currentGame.id,
         soloId: currentSolo.id,
-        guess: currentGuess.trim(),
-        attempt: currentAttempt
+        guess: currentGuessInputs[attemptIndex].trim(),
+        attempt: attemptIndex + 1
       });
       
-      guesses = [...guesses, currentGuess.trim()];
-      currentGuess = '';
+      guesses[attemptIndex] = currentGuessInputs[attemptIndex].trim();
+      guessStates[attemptIndex] = 'locked';
       
       if (response.correct) {
         gameStatus = 'won';
-      } else if (currentAttempt >= 4) {
+        stopTicker();
+      } else if (attemptIndex >= 3) {
         gameStatus = 'lost';
+        stopTicker();
       } else {
-        currentAttempt++;
+        // Unlock next guess component
+        guessStates[attemptIndex + 1] = 'active';
+        currentAttempt = attemptIndex + 2;
       }
     } catch (error) {
       console.error('Failed to submit guess:', error);
       errorMessage = 'Failed to submit guess. Please try again.';
     } finally {
       isSubmittingGuess = false;
+    }
+  }
+  
+  async function handleSkip(attemptIndex: number) {
+    if (isSubmittingGuess) return;
+    
+    guessStates[attemptIndex] = 'locked';
+    currentGuessInputs[attemptIndex] = 'Skipped';
+    
+    if (attemptIndex >= 3) {
+      gameStatus = 'lost';
+      stopTicker();
+    } else {
+      guessStates[attemptIndex + 1] = 'active';
+      currentAttempt = attemptIndex + 2;
     }
   }
   
@@ -245,18 +300,28 @@
     currentSolo = null;
     currentAttempt = 1;
     guesses = [];
-    currentGuess = '';
+    currentGuessInputs = ['', '', '', ''];
+    guessStates = ['active', 'pending', 'pending', 'pending'];
     player = null;
     deviceId = '';
     errorMessage = '';
+    stopTicker();
   }
 
   // Handle Enter key for guess submission
-  function handleKeydown(event: KeyboardEvent) {
+  function handleKeydown(event: KeyboardEvent, attemptIndex: number) {
     if (event.key === 'Enter' && !isSubmittingGuess) {
-      handleGuess();
+      handleGuess(attemptIndex);
     }
   }
+  
+  // Color mapping for guess components
+  const guessColors = [
+    { bg: '#ffebee', border: '#f44336', text: '#d32f2f' }, // Red
+    { bg: '#fff3e0', border: '#ff9800', text: '#f57c00' }, // Orange  
+    { bg: '#fffde7', border: '#ffeb3b', text: '#f9a825' }, // Yellow
+    { bg: '#e8f5e8', border: '#4caf50', text: '#388e3c' }  // Green
+  ];
 </script>
 
 <main>
@@ -302,9 +367,16 @@
   {:else if gameStatus === 'playing'}
     <!-- Game Screen -->
     <div class="game-screen">
+      <!-- Header -->
       <div class="game-header">
-        <h1>Daily Shredle</h1>
-        <button class="logout-button" on:click={logout}>Logout</button>
+        <button class="header-btn" disabled>ℹ️</button>
+        <h1>Shredle</h1>
+        <button class="header-btn" disabled>📊</button>
+      </div>
+      
+      <!-- Ticker -->
+      <div class="ticker">
+        {tickerMessage}
       </div>
       
       {#if errorMessage}
@@ -325,49 +397,64 @@
         </div>
       {/if}
       
-      <!-- Play Buttons -->
-      <div class="play-buttons">
+      <!-- Guess Components -->
+      <div class="guess-components">
         {#each Array(4) as _, i}
-          {#if i + 1 <= currentAttempt}
+          <div 
+            class="guess-component" 
+            style="--bg-color: {guessColors[i].bg}; --border-color: {guessColors[i].border}; --text-color: {guessColors[i].text}"
+          >
+            <!-- Play Button -->
             <button 
+              class="play-btn"
               on:click={() => playClip(i + 1)}
-              disabled={isPlaying || !deviceId || isSubmittingGuess}
-              class:active={!isPlaying && deviceId && !isSubmittingGuess}
+              disabled={isPlaying || !deviceId}
               class:playing={isPlaying}
             >
               {#if isPlaying}
-                🔊 Playing...
+                🎵 Playing...
               {:else}
-                ▶️ Clip {i + 1}
+                ▶️ Play
               {/if}
             </button>
-          {:else}
-            <div class="clip-placeholder">
-              🔒 Clip {i + 1}
+            
+            <!-- Input and Buttons -->
+            <div class="guess-input-section">
+              <input 
+                bind:value={currentGuessInputs[i]}
+                placeholder={guessStates[i] === 'pending' ? 'Locked' : 'Enter your guess...'}
+                on:keydown={(e) => handleKeydown(e, i)}
+                disabled={guessStates[i] !== 'active' || isSubmittingGuess}
+                class:locked={guessStates[i] === 'locked'}
+                class:pending={guessStates[i] === 'pending'}
+              />
+              
+              {#if guessStates[i] === 'active'}
+                <button 
+                  class="submit-btn"
+                  on:click={() => handleGuess(i)}
+                  disabled={!currentGuessInputs[i].trim() || isSubmittingGuess}
+                >
+                  Submit
+                </button>
+                <button 
+                  class="skip-btn"
+                  on:click={() => handleSkip(i)}
+                  disabled={isSubmittingGuess}
+                >
+                  Skip
+                </button>
+              {:else if guessStates[i] === 'locked'}
+                <button class="x-btn" disabled>✗</button>
+              {:else}
+                <div class="placeholder-btns">
+                  <div class="placeholder-btn">Submit</div>
+                  <div class="placeholder-btn">Skip</div>
+                </div>
+              {/if}
             </div>
-          {/if}
+          </div>
         {/each}
-      </div>
-      
-      <!-- Guess Form -->
-      <div class="guess-form">
-        <input 
-          bind:value={currentGuess}
-          placeholder="Enter your guess..."
-          on:keydown={handleKeydown}
-          disabled={isPlaying || isSubmittingGuess}
-        />
-        <button 
-          on:click={handleGuess} 
-          disabled={!currentGuess.trim() || isPlaying || isSubmittingGuess}
-          class:submitting={isSubmittingGuess}
-        >
-          {#if isSubmittingGuess}
-            Submitting...
-          {:else}
-            Submit Guess ({currentAttempt}/4)
-          {/if}
-        </button>
       </div>
       
       <!-- Hint Display -->
@@ -377,22 +464,14 @@
         </div>
       {/if}
       
-      <!-- Previous Guesses -->
-      {#if guesses.length > 0}
-        <div class="guesses">
-          <h3>Previous Guesses:</h3>
-          {#each guesses as guess}
-            <p>❌ {guess}</p>
-          {/each}
-        </div>
-      {/if}
+      <button class="logout-button" on:click={logout}>Logout</button>
     </div>
     
   {:else if gameStatus === 'won'}
     <!-- Win Screen -->
     <div class="win-screen">
       <h1>🎉 Congratulations!</h1>
-      <p>You guessed it in {guesses.length} tries!</p>
+      <p>You guessed it in {guesses.filter(g => g && g !== 'Skipped').length} tries!</p>
       <p><strong>{currentSolo?.title}</strong> by <strong>{currentSolo?.artist}</strong></p>
       <button>Share Your Result</button>
     </div>
@@ -436,6 +515,36 @@
 
   .game-header h1 {
     margin: 0;
+    font-size: 2rem;
+  }
+
+  .header-btn {
+    background: #ccc;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: not-allowed;
+    font-size: 1.2rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ticker {
+    background: var(--bg-color, #f0f0f0);
+    padding: 0.75rem 1rem;
+    border-radius: 20px;
+    margin: 1rem 0;
+    font-weight: bold;
+    color: #333;
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
   }
 
   .logout-button {
@@ -447,6 +556,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     transition: background 0.2s;
+    margin-top: 2rem;
   }
 
   .logout-button:hover {
@@ -554,62 +664,45 @@
     background: #1ed760;
   }
   
-  .play-buttons {
+  .guess-components {
     display: flex;
+    flex-direction: column;
     gap: 1rem;
-    justify-content: center;
     margin: 2rem 0;
-    flex-wrap: wrap;
   }
   
-  .play-buttons button {
+  .guess-component {
+    background: var(--bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
     padding: 1rem;
-    border: 2px solid #1db954;
-    background: #1db954;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    min-width: 100px;
-    transition: all 0.2s;
-  }
-
-  .play-buttons button:disabled {
-    background: #ccc;
-    border-color: #ccc;
-    cursor: not-allowed;
-  }
-  
-  .play-buttons button.active {
-    background: #1db954;
-    color: white;
-    border-color: #1db954;
-    cursor: pointer;
-  }
-  
-  .play-buttons button.active:hover {
-    background: #1ed760;
-  }
-  
-  .play-buttons button.playing {
-    background: #ff9500;
-    border-color: #ff9500;
-    color: white;
-    cursor: not-allowed;
-    animation: pulse 1.5s infinite;
-  }
-
-  .clip-placeholder {
-    padding: 1rem;
-    border: 2px solid #ddd;
-    background: #f5f5f5;
-    color: #999;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    min-width: 100px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+  }
+  
+  .play-btn {
+    background: var(--border-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-width: 80px;
+    transition: all 0.2s;
+  }
+  
+  .play-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .play-btn.playing {
+    background: #ff9500;
+    cursor: not-allowed;
+    animation: pulse 1.5s infinite;
   }
   
   @keyframes pulse {
@@ -618,52 +711,80 @@
     100% { opacity: 1; }
   }
   
-  .guess-form {
-    margin: 2rem 0;
+  .guess-input-section {
     display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+    align-items: center;
   }
   
-  .guess-form input {
+  .guess-input-section input {
+    flex: 1;
     padding: 0.75rem;
     border: 2px solid #ddd;
     border-radius: 8px;
     font-size: 1rem;
-    min-width: 200px;
   }
   
-  .guess-form input:disabled {
+  .guess-input-section input:disabled {
     background: #f5f5f5;
     color: #999;
     cursor: not-allowed;
   }
   
-  .guess-form button {
-    padding: 0.75rem 1.5rem;
-    background: #1db954;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.2s;
-    min-width: 140px; /* Ensure consistent width */
+  .guess-input-section input.locked {
+    background: var(--bg-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+    font-weight: bold;
   }
   
-  .guess-form button:disabled {
+  .guess-input-section input.pending {
+    background: #f5f5f5;
+    color: #999;
+  }
+  
+  .submit-btn, .skip-btn {
+    background: var(--border-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-width: 70px;
+    transition: all 0.2s;
+  }
+  
+  .submit-btn:disabled, .skip-btn:disabled {
     background: #ccc;
     cursor: not-allowed;
   }
   
-  .guess-form button.submitting {
-    background: #17a2b8;
+  .x-btn {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
     cursor: not-allowed;
+    font-size: 1rem;
+    min-width: 70px;
   }
   
-  .guess-form button:not(:disabled):not(.submitting):hover {
-    background: #1ed760;
+  .placeholder-btns {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .placeholder-btn {
+    background: #f5f5f5;
+    color: #999;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    min-width: 70px;
+    text-align: center;
   }
   
   .hint {
@@ -673,19 +794,6 @@
     border-radius: 8px;
     font-weight: bold;
     color: #333;
-  }
-  
-  .guesses {
-    margin-top: 2rem;
-    text-align: left;
-    max-width: 300px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  
-  .guesses h3 {
-    text-align: center;
-    margin-bottom: 1rem;
   }
   
   .win-screen, .loss-screen {
