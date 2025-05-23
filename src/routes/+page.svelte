@@ -18,7 +18,7 @@
   let player: any = null;
   let deviceId = '';
   let errorMessage = '';
-  let playingClipNumber = 0; // Track which specific clip is playing (0 = none)
+  let playingClipStates = [false, false, false, false]; // Independent state for each button
   let isInitialized = false;
   let isProcessingCallback = false;
   let isSpotifyInitializing = false; // Track Spotify initialization state
@@ -309,18 +309,21 @@
   }
   
   async function playClip(clipNumber: number) {
-    // Set visual feedback immediately when button is clicked
+    const clipIndex = clipNumber - 1;
+    
+    // Set visual feedback immediately for THIS specific button
     clearAllClipTimeouts();
-    playingClipNumber = clipNumber;
+    playingClipStates[clipIndex] = true;
+    // Trigger reactivity
+    playingClipStates = [...playingClipStates];
     errorMessage = ''; // Clear any previous errors
     
     if (!player || !deviceId || !currentGame || !isPlayerReady) {
       console.error('Cannot play clip: missing player, device ID, game data, or player not ready');
-      // Keep visual state for a moment to show user the button was clicked
+      // Keep visual state for a moment to show user THIS button was clicked
       setTimeout(() => {
-        if (playingClipNumber === clipNumber) {
-          playingClipNumber = 0;
-        }
+        playingClipStates[clipIndex] = false;
+        playingClipStates = [...playingClipStates];
       }, 1000);
       return;
     }
@@ -370,13 +373,11 @@
         endTime
       });
       
-      // Reset playing state after the clip duration
+      // Reset playing state after the clip duration for THIS specific button
       const clipDuration = (endTime - startTime) * 1000;
       const timeout = setTimeout(() => {
-        // Only reset if this is still the active clip
-        if (playingClipNumber === clipNumber) {
-          playingClipNumber = 0;
-        }
+        playingClipStates[clipIndex] = false;
+        playingClipStates = [...playingClipStates];
       }, clipDuration + 500); // Add small buffer
       
       clipTimeouts.push(timeout);
@@ -388,7 +389,8 @@
       } else {
         errorMessage = `Failed to play clip ${clipNumber}. Make sure Spotify is active and try again.`;
       }
-      playingClipNumber = 0;
+      playingClipStates[clipIndex] = false;
+      playingClipStates = [...playingClipStates];
     }
   }
   
@@ -404,8 +406,8 @@
     }   
   
   function isPlayButtonPlaying(index: number): boolean {
-    // Only the specific button that was clicked should show playing state
-    return playingClipNumber === (index + 1);
+    // Only THIS specific button shows playing state
+    return playingClipStates[index];
   }
 
   function clearError() {
@@ -435,7 +437,7 @@
     player = null;
     deviceId = '';
     errorMessage = '';
-    playingClipNumber = 0;
+    playingClipStates = [false, false, false, false];
     shownHints = new Set();
     mostRecentHint = '';
     isPlayerReady = false;
