@@ -351,9 +351,9 @@
   }
   
   function isPlayButtonEnabled(index: number): boolean {
-    // Enable if component is active or locked (previously unlocked) AND we have device connection
-    return deviceId && (guessStates[index] === 'active' || guessStates[index] === 'locked');
-  }
+  // Enable if component is active or locked (previously unlocked)
+    return guessStates[index] === 'active' || guessStates[index] === 'locked';
+    }
   
   function isPlayButtonPlaying(index: number): boolean {
     // Only the specific button that was clicked should show playing state
