@@ -1,4 +1,4 @@
-<script lang=\"ts\">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { afterNavigate } from '$app/navigation';
   import { page } from '$app/stores';
@@ -445,48 +445,48 @@
 <main>
   {#if !spotifyLoggedIn && !isProcessingCallback}
     <!-- Login Screen -->
-    <div class=\"login-screen\">
-      <div class=\"logo\">
+    <div class="login-screen">
+      <div class="logo">
         <h1>Shredle</h1>
       </div>
-      <p class=\"tagline\">Guess the guitar solo in 4 tries</p>
-      <p class=\"premium-note\">⚠ Spotify Premium required</p>
-      <button class=\"login-btn\" on:click={loginToSpotify}>
+      <p class="tagline">Guess the guitar solo in 4 tries</p>
+      <p class="premium-note">⚠ Spotify Premium required</p>
+      <button class="login-btn" on:click={loginToSpotify}>
         <span>Connect Spotify</span>
       </button>
     </div>
     
   {:else if gameStatus === 'loading' || isProcessingCallback}
     <!-- Loading Screen -->
-    <div class=\"loading-screen\">
-      <div class=\"logo\">
+    <div class="loading-screen">
+      <div class="logo">
         <h1>Shredle</h1>
       </div>
-      <p class=\"loading-text\">
+      <p class="loading-text">
         {#if isProcessingCallback}
           Completing Spotify login...
         {:else}
           Loading today's challenge...
         {/if}
       </p>
-      <div class=\"loading-spinner\"></div>
+      <div class="loading-spinner"></div>
     </div>
     
   {:else if gameStatus === 'error'}
     <!-- Error Screen -->
-    <div class=\"error-screen\">
-      <div class=\"logo\">
+    <div class="error-screen">
+      <div class="logo">
         <h1>Shredle</h1>
       </div>
       <h2>Something went wrong</h2>
-      <p class=\"error-message\">{errorMessage}</p>
-      <div class=\"error-actions\">
-        <button on:click={retry} class=\"retry-btn\">Try Again</button>
+      <p class="error-message">{errorMessage}</p>
+      <div class="error-actions">
+        <button on:click={retry} class="retry-btn">Try Again</button>
         <button on:click={() => { 
           spotifyLoggedIn = false; 
           localStorage.removeItem('spotify_access_token');
           isInitialized = false;
-        }} class=\"secondary-btn\">
+        }} class="secondary-btn">
           Login Again
         </button>
       </div>
@@ -494,27 +494,27 @@
     
   {:else if gameStatus === 'playing'}
     <!-- Game Screen -->
-    <div class=\"game-screen\">
+    <div class="game-screen">
       <!-- Header -->
-      <div class=\"game-header\">
-        <button class=\"header-btn\" disabled>
-          <svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-            <path d=\"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z\"/>
+      <div class="game-header">
+        <button class="header-btn" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
           </svg>
         </button>
-        <div class=\"logo\">
+        <div class="logo">
           <h1>Shredle</h1>
         </div>
-        <button class=\"header-btn\" disabled>
-          <svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-            <path d=\"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z\"/>
+        <button class="header-btn" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
           </svg>
         </button>
       </div>
       
       <!-- Ticker -->
       <div 
-        class=\"ticker\" 
+        class="ticker" 
         class:hint={tickerIsHint}
         class:new-hint={tickerIsNewHint}
       >
@@ -522,25 +522,25 @@
       </div>
       
       {#if errorMessage}
-        <div class=\"error-banner\">
+        <div class="error-banner">
           <span>{errorMessage}</span>
-          <button on:click={clearError} class=\"close-error\">×</button>
+          <button on:click={clearError} class="close-error">×</button>
         </div>
       {/if}
       
       <!-- Guess Components -->
-      <div class=\"guess-components\">
+      <div class="guess-components">
         {#each Array(4) as _, i}
           <div 
-            class=\"guess-component\"
+            class="guess-component"
             class:active={guessStates[i] === 'active'}
             class:locked={guessStates[i] === 'locked'}
             class:pending={guessStates[i] === 'pending'}
           >
-            <div class=\"guess-row\">
+            <div class="guess-row">
               <!-- Play Button -->
               <button 
-                class=\"play-btn\"
+                class="play-btn"
                 on:click={() => playClip(i + 1)}
                 disabled={!isPlayButtonEnabled(i) && !isPlayButtonLoading(i)}
                 class:playing={isPlayButtonPlaying(i)}
@@ -548,14 +548,14 @@
                 class:loading={isPlayButtonLoading(i)}
               >
                 {#if isPlayButtonLoading(i)}
-                  <div class=\"play-spinner\"></div>
+                  <div class="play-spinner"></div>
                 {:else if isPlayButtonPlaying(i)}
-                  <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-                    <rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"2\"/>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2"/>
                   </svg>
                 {:else}
-                  <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-                    <path d=\"M8 5v14l11-7z\"/>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
                   </svg>
                 {/if}
               </button>
@@ -572,10 +572,10 @@
             </div>
             
             <!-- Action Buttons -->
-            <div class=\"action-buttons\">
+            <div class="action-buttons">
               {#if guessStates[i] === 'active'}
                 <button 
-                  class=\"submit-btn\"
+                  class="submit-btn"
                   on:click={() => handleGuess(i)}
                   disabled={!currentGuessInputs[i].trim() || isSubmittingGuess}
                   class:enabled={currentGuessInputs[i].trim() && !isSubmittingGuess}
@@ -583,7 +583,7 @@
                   Submit
                 </button>
                 <button 
-                  class=\"skip-btn\"
+                  class="skip-btn"
                   on:click={() => handleSkip(i)}
                   disabled={isSubmittingGuess}
                   class:enabled={!isSubmittingGuess}
@@ -591,15 +591,15 @@
                   Skip
                 </button>
               {:else if guessStates[i] === 'locked'}
-                <button class=\"x-btn\" disabled>
-                  <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-                    <path d=\"M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z\"/>
+                <button class="x-btn" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                   </svg>
                 </button>
               {:else}
-                <div class=\"placeholder-btns\">
-                  <div class=\"placeholder-btn\">Submit</div>
-                  <div class=\"placeholder-btn\">Skip</div>
+                <div class="placeholder-btns">
+                  <div class="placeholder-btn">Submit</div>
+                  <div class="placeholder-btn">Skip</div>
                 </div>
               {/if}
             </div>
@@ -607,9 +607,9 @@
         {/each}
       </div>
       
-      <button class=\"logout-button\" on:click={logout}>
-        <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-          <path d=\"M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z\"/>
+      <button class="logout-button" on:click={logout}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
         </svg>
         Logout
       </button>
@@ -617,17 +617,17 @@
     
   {:else if gameStatus === 'won'}
     <!-- Win Screen -->
-    <div class=\"win-screen\">
-      <div class=\"result-icon\">🎉</div>
+    <div class="win-screen">
+      <div class="result-icon">🎉</div>
       <h1>Congratulations!</h1>
-      <p class=\"result-text\">You guessed it in {guesses.filter(g => g && g !== 'Skipped').length} tries!</p>
-      <div class=\"song-info\">
+      <p class="result-text">You guessed it in {guesses.filter(g => g && g !== 'Skipped').length} tries!</p>
+      <div class="song-info">
         <h2>{currentSolo?.title}</h2>
         <p>by {currentSolo?.artist}</p>
       </div>
-      <button class=\"share-btn\">
-        <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-          <path d=\"M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z\"/>
+      <button class="share-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
         </svg>
         Share Result
       </button>
@@ -635,17 +635,17 @@
     
   {:else if gameStatus === 'lost'}
     <!-- Loss Screen -->
-    <div class=\"loss-screen\">
-      <div class=\"result-icon\">😔</div>
+    <div class="loss-screen">
+      <div class="result-icon">😔</div>
       <h1>Better luck tomorrow!</h1>
-      <p class=\"result-text\">The answer was:</p>
-      <div class=\"song-info\">
+      <p class="result-text">The answer was:</p>
+      <div class="song-info">
         <h2>{currentSolo?.title}</h2>
         <p>by {currentSolo?.artist}</p>
       </div>
-      <button class=\"share-btn\">
-        <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\">
-          <path d=\"M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z\"/>
+      <button class="share-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
         </svg>
         Share Result
       </button>
