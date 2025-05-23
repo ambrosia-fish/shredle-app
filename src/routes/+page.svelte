@@ -22,6 +22,8 @@
   let isInitialized = false;
   let isProcessingCallback = false;
   let isSpotifyInitializing = false; // Track Spotify initialization state
+  let isPlayerReady = false; // Track if player is ready
+  let clipTimeouts: NodeJS.Timeout[] = []; // Track clip end timeouts
   
   // UI state variables
   let tickerMessage = '';
@@ -205,6 +207,7 @@
       
       // Mark Spotify as initializing
       isSpotifyInitializing = true;
+      isPlayerReady = false;
       
       // Initialize Spotify player
       console.log('Initializing Spotify player...');
@@ -215,6 +218,7 @@
         console.log('Spotify player ready with device ID:', device_id);
         deviceId = device_id;
         isSpotifyInitializing = false; // Spotify is ready
+        isPlayerReady = true; // Player is ready
         // Transfer playback to our device
         transferPlaybackToDevice(device_id).catch(err => {
           console.warn('Failed to transfer playback:', err);
@@ -225,6 +229,7 @@
       player.addListener('initialization_error', ({ message }) => {
         console.error('Spotify initialization error:', message);
         isSpotifyInitializing = false;
+        isPlayerReady = false;
         errorMessage = 'Failed to initialize Spotify player';
       });
       
@@ -236,6 +241,7 @@
       errorMessage = getSpotifyErrorMessage(error instanceof Error ? error.message : String(error));
       gameStatus = 'error';
       isSpotifyInitializing = false;
+      isPlayerReady = false;
     }
   }
   
@@ -295,6 +301,10 @@
     if (player && playingClipNumber > 0) {
       player.pause();
       playingClipNumber = 0;
+      
+      // Clear all clip timeouts
+      clipTimeouts.forEach(timeout => clearTimeout(timeout));
+      clipTimeouts = [];
     }
   }
   
@@ -310,8 +320,8 @@
       stopClip();
     }
     
-    if (!player || !deviceId || !currentGame) {
-      console.error('Cannot play clip: missing player, device ID, or game data');
+    if (!player || !deviceId || !currentGame || !isPlayerReady) {
+      console.error('Cannot play clip: missing player, device ID, game data, or player not ready');
       return;
     }
     
@@ -365,9 +375,13 @@
       
       // Reset playing state after the clip duration
       const clipDuration = (endTime - startTime) * 1000;
-      setTimeout(() => {
-        playingClipNumber = 0;
+      const timeout = setTimeout(() => {
+        if (playingClipNumber === clipNumber) {
+          playingClipNumber = 0;
+        }
       }, clipDuration + 500); // Add small buffer
+      
+      clipTimeouts.push(timeout);
       
     } catch (error) {
       console.error('Failed to play clip:', error);
@@ -381,14 +395,9 @@
   }
   
   function isPlayButtonEnabled(index: number): boolean {
-    // Show loading state for first button while Spotify initializes
-    if (index === 0 && isSpotifyInitializing) {
-      return false; // Disabled but will show loading animation
-    }
-    
     // Enable for active and all previous (locked) components when player is ready
     return (guessStates[index] === 'active' || guessStates[index] === 'locked') && 
-           player && deviceId && !isSpotifyInitializing;
+           isPlayerReady && !isSpotifyInitializing;
   }
 
   function isPlayButtonLoading(index: number): boolean {
@@ -431,6 +440,9 @@
     playingClipNumber = 0;
     shownHints = new Set();
     mostRecentHint = '';
+    isPlayerReady = false;
+    clipTimeouts.forEach(timeout => clearTimeout(timeout));
+    clipTimeouts = [];
     stopTicker();
   }
 
