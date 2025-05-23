@@ -302,6 +302,12 @@
     }
   }
   
+  // Clear all previous timeouts and reset state
+  function clearAllClipTimeouts() {
+    clipTimeouts.forEach(timeout => clearTimeout(timeout));
+    clipTimeouts = [];
+  }
+  
   async function playClip(clipNumber: number) {
     if (!player || !deviceId || !currentGame || !isPlayerReady) {
       console.error('Cannot play clip: missing player, device ID, game data, or player not ready');
@@ -309,6 +315,9 @@
     }
     
     try {
+      // Clear any existing timeouts and reset playing state
+      clearAllClipTimeouts();
+      
       // Set playing state immediately for visual feedback
       playingClipNumber = clipNumber;
       errorMessage = ''; // Clear any previous errors
@@ -360,6 +369,7 @@
       // Reset playing state after the clip duration
       const clipDuration = (endTime - startTime) * 1000;
       const timeout = setTimeout(() => {
+        // Only reset if this is still the active clip
         if (playingClipNumber === clipNumber) {
           playingClipNumber = 0;
         }
@@ -425,8 +435,7 @@
     shownHints = new Set();
     mostRecentHint = '';
     isPlayerReady = false;
-    clipTimeouts.forEach(timeout => clearTimeout(timeout));
-    clipTimeouts = [];
+    clearAllClipTimeouts();
     stopTicker();
   }
 
