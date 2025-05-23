@@ -14,6 +14,16 @@ export async function getDailyGame(): Promise<Game> {
   return response.json();
 }
 
+export async function getDailyTestGame(passcode: string): Promise<Game> {
+  const response = await fetch(`${API_BASE}/game/daily-test?passcode=${encodeURIComponent(passcode)}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch test game');
+  }
+  
+  return response.json();
+}
+
 export async function getSolo(id: number): Promise<Solo> {
   const response = await fetch(`${API_BASE}/solo/${id}`);
   
