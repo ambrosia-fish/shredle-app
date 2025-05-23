@@ -309,6 +309,7 @@
     }
     
     try {
+      // Set playing state immediately for visual feedback
       playingClipNumber = clipNumber;
       errorMessage = ''; // Clear any previous errors
       
