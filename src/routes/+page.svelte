@@ -314,14 +314,6 @@
       handleGuess(attemptIndex);
     }
   }
-  
-  // Color mapping for play buttons only
-  const playButtonColors = [
-    '#f44336', // Red
-    '#ff9800', // Orange  
-    '#ffeb3b', // Yellow
-    '#4caf50'  // Green
-  ];
 </script>
 
 <main>
@@ -404,10 +396,10 @@
             <!-- Play Button -->
             <button 
               class="play-btn"
-              style="background-color: {playButtonColors[i]}"
               on:click={() => playClip(i + 1)}
               disabled={isPlaying || !deviceId}
               class:playing={isPlaying}
+              class:enabled={!isPlaying && deviceId}
             >
               {#if isPlaying}
                 🎵 Playing...
@@ -432,6 +424,7 @@
                   class="submit-btn"
                   on:click={() => handleGuess(i)}
                   disabled={!currentGuessInputs[i].trim() || isSubmittingGuess}
+                  class:enabled={currentGuessInputs[i].trim() && !isSubmittingGuess}
                 >
                   Submit
                 </button>
@@ -439,6 +432,7 @@
                   class="skip-btn"
                   on:click={() => handleSkip(i)}
                   disabled={isSubmittingGuess}
+                  class:enabled={!isSubmittingGuess}
                 >
                   Skip
                 </button>
@@ -681,25 +675,35 @@
   }
   
   .play-btn {
+    background: #007bff;
     color: white;
     border: none;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
-    min-width: 80px;
-    transition: all 0.2s;
+    font-size: 0.8rem;
+    min-width: 70px;
+    transition: all 0.3s ease;
+    transform: scale(0.9);
+  }
+  
+  .play-btn.enabled {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
   }
   
   .play-btn:disabled {
-    background: #ccc !important;
+    background: #999;
     cursor: not-allowed;
+    transform: scale(0.9);
+    box-shadow: none;
   }
   
   .play-btn.playing {
-    background: #ff9500 !important;
+    background: #ff9500;
     cursor: not-allowed;
     animation: pulse 1.5s infinite;
+    transform: scale(1);
   }
   
   @keyframes pulse {
@@ -742,32 +746,53 @@
   }
   
   .submit-btn {
-    background: #007bff;
+    background: #28a745;
     color: white;
     border: none;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
-    min-width: 70px;
-    transition: all 0.2s;
+    font-size: 0.8rem;
+    min-width: 60px;
+    transition: all 0.3s ease;
+    transform: scale(0.9);
+  }
+  
+  .submit-btn.enabled {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+  }
+  
+  .submit-btn:disabled {
+    background: #999;
+    cursor: not-allowed;
+    transform: scale(0.9);
+    box-shadow: none;
   }
   
   .skip-btn {
-    background: #666;
+    background: #1a365d;
     color: white;
     border: none;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
-    min-width: 70px;
-    transition: all 0.2s;
+    font-size: 0.8rem;
+    min-width: 60px;
+    transition: all 0.3s ease;
+    transform: scale(0.9);
   }
   
-  .submit-btn:disabled, .skip-btn:disabled {
-    background: #ccc;
+  .skip-btn.enabled {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(26, 54, 93, 0.3);
+  }
+  
+  .skip-btn:disabled {
+    background: #999;
     cursor: not-allowed;
+    transform: scale(0.9);
+    box-shadow: none;
   }
   
   .x-btn {
