@@ -341,24 +341,29 @@
   async function playClip(clipNumber: number) {
     const clipIndex = clipNumber - 1;
     
+    console.log(`Play button ${clipNumber} clicked!`);
+    
     // Clear any existing timeouts
     clearAllClipTimeouts();
     
     // Set visual feedback immediately for THIS specific button
     playingClipStates[clipIndex] = true;
-    playingClipStates = [...playingClipStates];
+    playingClipStates = [...playingClipStates]; // Force reactivity
     errorMessage = ''; // Clear any previous errors
+    
+    console.log(`Button ${clipNumber} state set to playing:`, playingClipStates[clipIndex]);
     
     // Get clip duration and set timeout to reset button state
     const clipDurationSeconds = getClipDuration(clipNumber);
     const clipDurationMs = clipDurationSeconds * 1000;
     
-    console.log(`Button ${clipNumber} will stay green for ${clipDurationSeconds} seconds`);
+    console.log(`Button ${clipNumber} will stay purple for ${clipDurationSeconds} seconds`);
     
     // Always set timeout to reset button state based on clip duration
     const visualTimeout = setTimeout(() => {
       playingClipStates[clipIndex] = false;
       playingClipStates = [...playingClipStates];
+      console.log(`Button ${clipNumber} reset to normal state`);
     }, clipDurationMs);
     
     clipTimeouts.push(visualTimeout);
@@ -581,7 +586,7 @@
               <button 
                 class="play-btn"
                 on:click={() => playClip(i + 1)}
-                disabled={isPlayButtonLoading(i) || !isPlayButtonClickable(i)}
+                disabled={isPlayButtonLoading(i)}
                 class:playing={isPlayButtonPlaying(i)}
                 class:enabled={isPlayButtonClickable(i) && !isPlayButtonLoading(i)}
                 class:loading={isPlayButtonLoading(i)}
@@ -940,10 +945,10 @@
   }
   
   .play-btn.playing {
-    background: #28a745 !important;
+    background: #8b5cf6 !important;
     color: white !important;
     animation: pulse 1.5s infinite;
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
   }
   
   .play-btn.loading {
@@ -965,7 +970,7 @@
   }
 
   .play-btn.playing:hover {
-    background: #218838 !important;
+    background: #7c3aed !important;
     transform: scale(1.1);
   }
   
