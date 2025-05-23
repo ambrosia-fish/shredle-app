@@ -302,10 +302,12 @@
     }
   }
   
-  // Clear all previous timeouts and reset state
+  // Clear all previous timeouts and reset all button states
   function clearAllClipTimeouts() {
     clipTimeouts.forEach(timeout => clearTimeout(timeout));
     clipTimeouts = [];
+    // Reset all button visual states when clearing timeouts
+    playingClipStates = [false, false, false, false];
   }
   
   // Get clip duration from solo data
@@ -343,11 +345,11 @@
     
     console.log(`Play button ${clipNumber} clicked!`);
     
-    // Clear any existing timeouts
+    // Clear any existing timeouts and reset all button states first
     clearAllClipTimeouts();
     
-    // Set visual feedback immediately for THIS specific button
-    playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? true : state);
+    // Set visual feedback immediately for THIS specific button only
+    playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? true : false);
     errorMessage = ''; // Clear any previous errors
     
     console.log(`Button ${clipNumber} state set to playing:`, playingClipStates[clipIndex]);
@@ -358,10 +360,9 @@
     
     console.log(`Button ${clipNumber} will stay purple for ${clipDurationSeconds} seconds`);
     
-    // Always set timeout to reset button state based on clip duration
+    // Set timeout to reset this specific button state
     const visualTimeout = setTimeout(() => {
-      playingClipStates[clipIndex] = false;
-      playingClipStates = [...playingClipStates];
+      playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? false : state);
       console.log(`Button ${clipNumber} reset to normal state`);
     }, clipDurationMs);
     
@@ -944,10 +945,12 @@
   }
   
   .play-btn.enabled.playing,
-    .play-btn.playing {
+  .play-btn.playing {
     background: #8b5cf6 !important;
     color: white !important;
-    }
+    animation: pulse 1.5s infinite;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+  }
   
   .play-btn.loading {
     background: #555;
