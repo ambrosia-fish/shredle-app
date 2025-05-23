@@ -24,35 +24,79 @@
   
   // UI state variables
   let tickerMessage = '';
+  let tickerIsHint = false;
+  let tickerIsNewHint = false;
   let guessStates: ('active' | 'locked' | 'pending')[] = ['active', 'pending', 'pending', 'pending'];
   let currentGuessInputs: string[] = ['', '', '', ''];
   let isSubmittingGuess = false;
   
   // Ticker functionality
   let tickerInterval: number;
+  let tickerIndex = 0;
+  
+  function getTickerMessages() {
+    const messages = [];
+    
+    // Always include date
+    const today = new Date();
+    messages.push({
+      text: today.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      isHint: false,
+      isNew: false
+    });
+    
+    // Always include attempts left
+    const attemptsLeft = 4 - currentAttempt + 1;
+    messages.push({
+      text: `${attemptsLeft} attempts left`,
+      isHint: false,
+      isNew: false
+    });
+    
+    // Add hints based on current attempt
+    if (currentAttempt >= 2 && currentSolo?.guitarist) {
+      messages.push({
+        text: `Guitarist: ${currentSolo.guitarist}`,
+        isHint: true,
+        isNew: currentAttempt === 2
+      });
+    }
+    
+    if (currentAttempt >= 3 && currentSolo?.artist) {
+      messages.push({
+        text: `Artist: ${currentSolo.artist}`,
+        isHint: true,
+        isNew: currentAttempt === 3
+      });
+    }
+    
+    if (currentAttempt >= 4 && currentSolo?.hint) {
+      messages.push({
+        text: `Hint: ${currentSolo.hint}`,
+        isHint: true,
+        isNew: currentAttempt === 4
+      });
+    }
+    
+    return messages;
+  }
   
   function startTicker() {
-    let showDate = true;
     function updateTicker() {
-      if (showDate) {
-        const today = new Date();
-        tickerMessage = today.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        });
-      } else {
-        // Show hint or attempts left based on current attempt
-        const hintText = getHintText();
-        if (hintText) {
-          tickerMessage = hintText;
-        } else {
-          const attemptsLeft = 4 - currentAttempt + 1;
-          tickerMessage = `${attemptsLeft} attempts left`;
-        }
-      }
-      showDate = !showDate;
+      const messages = getTickerMessages();
+      if (messages.length === 0) return;
+      
+      const currentMessage = messages[tickerIndex % messages.length];
+      tickerMessage = currentMessage.text;
+      tickerIsHint = currentMessage.isHint;
+      tickerIsNewHint = currentMessage.isNew;
+      
+      tickerIndex++;
     }
     
     updateTicker();
@@ -276,11 +320,9 @@
     }
   }
   
-  function getHintText(): string {
-    if (currentAttempt === 2) return `Guitarist: ${currentSolo?.guitarist}`;
-    if (currentAttempt === 3) return `Artist: ${currentSolo?.artist}`;
-    if (currentAttempt === 4) return `Hint: ${currentSolo?.hint}`;
-    return '';
+  function isPlayButtonEnabled(index: number): boolean {
+    // Enable if component is active or locked (previously unlocked)
+    return !isPlaying && deviceId && (guessStates[index] === 'active' || guessStates[index] === 'locked');
   }
 
   function clearError() {
@@ -392,7 +434,11 @@
       </div>
       
       <!-- Ticker -->
-      <div class="ticker">
+      <div 
+        class="ticker" 
+        class:hint={tickerIsHint}
+        class:new-hint={tickerIsNewHint}
+      >
         {tickerMessage}
       </div>
       
@@ -432,9 +478,9 @@
               <button 
                 class="play-btn"
                 on:click={() => playClip(i + 1)}
-                disabled={isPlaying || !deviceId || guessStates[i] !== 'active'}
+                disabled={!isPlayButtonEnabled(i)}
                 class:playing={isPlaying}
-                class:enabled={!isPlaying && deviceId && guessStates[i] === 'active'}
+                class:enabled={isPlayButtonEnabled(i)}
               >
                 {#if isPlaying}
                   <div class="playing-bars">
@@ -705,11 +751,31 @@
     text-align: center;
     border: 1px solid #333;
     animation: fadeIn 0.5s ease-in-out;
+    transition: all 0.3s ease;
+  }
+  
+  .ticker.hint {
+    color: #fbbf24;
+    border-color: #fbbf24;
+  }
+  
+  .ticker.new-hint {
+    background: #1f2937;
+    color: #f59e0b;
+    border-color: #f59e0b;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+    animation: fadeIn 0.5s ease-in-out, glow 2s ease-in-out;
   }
 
   @keyframes fadeIn {
     0% { opacity: 0; transform: translateY(-10px); }
     100% { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes glow {
+    0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.3); }
+    50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.6); }
+    100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
   }
 
   .device-status {
