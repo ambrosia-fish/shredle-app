@@ -347,8 +347,7 @@
     clearAllClipTimeouts();
     
     // Set visual feedback immediately for THIS specific button
-    playingClipStates[clipIndex] = true;
-    playingClipStates = [...playingClipStates]; // Force reactivity
+    playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? true : state);
     errorMessage = ''; // Clear any previous errors
     
     console.log(`Button ${clipNumber} state set to playing:`, playingClipStates[clipIndex]);
