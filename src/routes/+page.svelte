@@ -320,16 +320,25 @@
   {#if !spotifyLoggedIn && !isProcessingCallback}
     <!-- Login Screen -->
     <div class="login-screen">
-      <h1>Welcome to Shredle!</h1>
-      <p>Guess the guitar solo in 4 tries</p>
+      <div class="logo">
+        <h1>Shredle</h1>
+        <div class="logo-accent">🎸</div>
+      </div>
+      <p class="tagline">Guess the guitar solo in 4 tries</p>
       <p class="premium-note">⚠ Spotify Premium required</p>
-      <button on:click={loginToSpotify}>Login with Spotify</button>
+      <button class="login-btn" on:click={loginToSpotify}>
+        <span>Connect Spotify</span>
+      </button>
     </div>
     
   {:else if gameStatus === 'loading' || isProcessingCallback}
     <!-- Loading Screen -->
     <div class="loading-screen">
-      <p>
+      <div class="logo">
+        <h1>Shredle</h1>
+        <div class="logo-accent">🎸</div>
+      </div>
+      <p class="loading-text">
         {#if isProcessingCallback}
           Completing Spotify login...
         {:else}
@@ -342,7 +351,11 @@
   {:else if gameStatus === 'error'}
     <!-- Error Screen -->
     <div class="error-screen">
-      <h2>Oops! Something went wrong</h2>
+      <div class="logo">
+        <h1>Shredle</h1>
+        <div class="logo-accent">🎸</div>
+      </div>
+      <h2>Something went wrong</h2>
       <p class="error-message">{errorMessage}</p>
       <div class="error-actions">
         <button on:click={retry} class="retry-btn">Try Again</button>
@@ -350,7 +363,7 @@
           spotifyLoggedIn = false; 
           localStorage.removeItem('spotify_access_token');
           isInitialized = false;
-        }} class="logout-btn">
+        }} class="secondary-btn">
           Login Again
         </button>
       </div>
@@ -361,9 +374,20 @@
     <div class="game-screen">
       <!-- Header -->
       <div class="game-header">
-        <button class="header-btn" disabled>ℹ️</button>
-        <h1>Shredle</h1>
-        <button class="header-btn" disabled>📊</button>
+        <button class="header-btn" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+        </button>
+        <div class="logo">
+          <h1>Shredle</h1>
+          <div class="logo-accent">🎸</div>
+        </div>
+        <button class="header-btn" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+          </svg>
+        </button>
       </div>
       
       <!-- Ticker -->
@@ -380,12 +404,16 @@
       
       <!-- Device Status -->
       {#if deviceId}
-        <div class="device-status">
-          🎵 Connected to Spotify Player
+        <div class="device-status connected">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+          </svg>
+          Connected to Spotify
         </div>
       {:else}
         <div class="device-status connecting">
-          🔄 Connecting to Spotify...
+          <div class="connecting-spinner"></div>
+          Connecting to Spotify...
         </div>
       {/if}
       
@@ -393,23 +421,29 @@
       <div class="guess-components">
         {#each Array(4) as _, i}
           <div class="guess-component">
-            <!-- Play Button -->
-            <button 
-              class="play-btn"
-              on:click={() => playClip(i + 1)}
-              disabled={isPlaying || !deviceId}
-              class:playing={isPlaying}
-              class:enabled={!isPlaying && deviceId}
-            >
-              {#if isPlaying}
-                🎵 Playing...
-              {:else}
-                ▶️ Play
-              {/if}
-            </button>
-            
-            <!-- Input and Buttons -->
-            <div class="guess-input-section">
+            <div class="guess-row">
+              <!-- Play Button -->
+              <button 
+                class="play-btn"
+                on:click={() => playClip(i + 1)}
+                disabled={isPlaying || !deviceId}
+                class:playing={isPlaying}
+                class:enabled={!isPlaying && deviceId}
+              >
+                {#if isPlaying}
+                  <div class="playing-bars">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                {:else}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                {/if}
+              </button>
+              
+              <!-- Input Field -->
               <input 
                 bind:value={currentGuessInputs[i]}
                 placeholder={guessStates[i] === 'pending' ? 'Locked' : 'Enter your guess...'}
@@ -418,7 +452,10 @@
                 class:locked={guessStates[i] === 'locked'}
                 class:pending={guessStates[i] === 'pending'}
               />
-              
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="action-buttons">
               {#if guessStates[i] === 'active'}
                 <button 
                   class="submit-btn"
@@ -437,7 +474,11 @@
                   Skip
                 </button>
               {:else if guessStates[i] === 'locked'}
-                <button class="x-btn" disabled>✗</button>
+                <button class="x-btn" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
               {:else}
                 <div class="placeholder-btns">
                   <div class="placeholder-btn">Submit</div>
@@ -452,132 +493,151 @@
       <!-- Hint Display -->
       {#if getHintText()}
         <div class="hint">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/>
+          </svg>
           {getHintText()}
         </div>
       {/if}
       
-      <button class="logout-button" on:click={logout}>Logout</button>
+      <button class="logout-button" on:click={logout}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+        </svg>
+        Logout
+      </button>
     </div>
     
   {:else if gameStatus === 'won'}
     <!-- Win Screen -->
     <div class="win-screen">
-      <h1>🎉 Congratulations!</h1>
-      <p>You guessed it in {guesses.filter(g => g && g !== 'Skipped').length} tries!</p>
-      <p><strong>{currentSolo?.title}</strong> by <strong>{currentSolo?.artist}</strong></p>
-      <button>Share Your Result</button>
+      <div class="result-icon">🎉</div>
+      <h1>Congratulations!</h1>
+      <p class="result-text">You guessed it in {guesses.filter(g => g && g !== 'Skipped').length} tries!</p>
+      <div class="song-info">
+        <h2>{currentSolo?.title}</h2>
+        <p>by {currentSolo?.artist}</p>
+      </div>
+      <button class="share-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+        </svg>
+        Share Result
+      </button>
     </div>
     
   {:else if gameStatus === 'lost'}
     <!-- Loss Screen -->
     <div class="loss-screen">
-      <h1>😔 Better luck tomorrow!</h1>
-      <p>The answer was:</p>
-      <p><strong>{currentSolo?.title}</strong> by <strong>{currentSolo?.artist}</strong></p>
-      <button>Share Your Result</button>
+      <div class="result-icon">😔</div>
+      <h1>Better luck tomorrow!</h1>
+      <p class="result-text">The answer was:</p>
+      <div class="song-info">
+        <h2>{currentSolo?.title}</h2>
+        <p>by {currentSolo?.artist}</p>
+      </div>
+      <button class="share-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+        </svg>
+        Share Result
+      </button>
     </div>
   {/if}
 </main>
 
 <style>
+  :global(body) {
+    background: #0a0a0a;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
   main {
     max-width: 600px;
     margin: 0 auto;
-    padding: 2rem;
-    text-align: center;
-    font-family: Arial, sans-serif;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
   }
   
-  .login-screen, .loading-screen, .win-screen, .loss-screen, .error-screen {
-    padding: 3rem 1rem;
+  .logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .logo h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+  }
+  
+  .logo-accent {
+    font-size: 2rem;
+    filter: grayscale(1) brightness(1.2);
+  }
+  
+  .login-screen, .loading-screen, .error-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    text-align: center;
+  }
+  
+  .tagline {
+    font-size: 1.2rem;
+    color: #a0a0a0;
+    margin-bottom: 0.5rem;
   }
   
   .premium-note {
     color: #666;
     font-size: 0.9rem;
-    margin: 0.5rem 0;
+    margin-bottom: 2rem;
   }
-
-  .game-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .game-header h1 {
-    margin: 0;
-    font-size: 2rem;
-  }
-
-  .header-btn {
-    background: #ccc;
-    border: none;
-    padding: 0.5rem;
-    border-radius: 50%;
-    cursor: not-allowed;
-    font-size: 1.2rem;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .ticker {
-    background: #f0f0f0;
-    padding: 0.75rem 1rem;
-    border-radius: 20px;
-    margin: 1rem 0;
-    font-weight: bold;
-    color: #333;
-    animation: fadeIn 0.5s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
-  }
-
-  .logout-button {
-    background: #ff6666;
+  
+  .login-btn {
+    background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s;
-    margin-top: 2rem;
-  }
-
-  .logout-button:hover {
-    background: #ff5555;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
   }
   
-  .device-status {
-    background: #e8f5e8;
-    color: #2d5a2d;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    display: inline-block;
-    margin: 1rem 0;
-    font-size: 0.9rem;
+  .login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(29, 185, 84, 0.4);
   }
   
-  .device-status.connecting {
-    background: #fff3cd;
-    color: #856404;
+  .loading-text {
+    color: #a0a0a0;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
   }
   
   .loading-spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #1db954;
+    border: 3px solid #333;
+    border-top: 3px solid #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin: 1rem auto;
   }
   
   @keyframes spin {
@@ -585,125 +645,189 @@
     100% { transform: rotate(360deg); }
   }
   
-  .error-screen {
-    background: #f8f8f8;
-    border-radius: 12px;
-    border: 2px solid #ff6b6b;
-  }
-  
   .error-message {
-    color: #d63031;
-    margin: 1rem 0;
+    color: #ff6b6b;
+    margin: 1rem 0 2rem;
     font-weight: 500;
   }
   
   .error-actions {
     display: flex;
     gap: 1rem;
-    justify-content: center;
     flex-wrap: wrap;
   }
   
-  .retry-btn, .logout-btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-  }
-  
   .retry-btn {
-    background: #1db954;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
   }
   
-  .logout-btn {
-    background: #666;
-    color: white;
+  .secondary-btn {
+    background: transparent;
+    color: #a0a0a0;
+    border: 2px solid #333;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
   }
   
-  .error-banner {
-    background: #ffe6e6;
-    border: 1px solid #ff6b6b;
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
+  .secondary-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+  }
+
+  .game-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 2rem;
   }
-  
-  .close-error {
-    background: none;
+
+  .game-header .logo h1 {
+    font-size: 2rem;
+  }
+
+  .header-btn {
+    background: #1a1a1a;
+    color: #666;
     border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #d63031;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: not-allowed;
+  }
+
+  .ticker {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    color: #a0a0a0;
+    padding: 1rem 1.5rem;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid #333;
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(-10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  .device-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    font-weight: 600;
   }
   
-  .login-screen button {
-    background: #1db954;
+  .device-status.connected {
+    background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
     color: white;
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-top: 1rem;
   }
   
-  .login-screen button:hover {
-    background: #1ed760;
+  .device-status.connecting {
+    background: #1a1a1a;
+    color: #a0a0a0;
+    border: 1px solid #333;
+  }
+  
+  .connecting-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #333;
+    border-top: 2px solid #a0a0a0;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
   
   .guess-components {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin: 2rem 0;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
   }
   
   .guess-component {
-    background: #f5f5f5;
-    border: 2px solid #ddd;
-    border-radius: 12px;
-    padding: 1rem;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .guess-row {
     display: flex;
     align-items: center;
     gap: 1rem;
-    transition: all 0.3s ease;
+    margin-bottom: 1rem;
   }
   
   .play-btn {
-    background: #007bff;
-    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
     border: none;
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
+    background: #333;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    font-size: 0.8rem;
-    min-width: 70px;
     transition: all 0.3s ease;
     transform: scale(0.9);
+    flex-shrink: 0;
   }
   
   .play-btn.enabled {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
     transform: scale(1);
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-  }
-  
-  .play-btn:disabled {
-    background: #999;
-    cursor: not-allowed;
-    transform: scale(0.9);
-    box-shadow: none;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
   }
   
   .play-btn.playing {
-    background: #ff9500;
-    cursor: not-allowed;
+    background: linear-gradient(135deg, #ff9500 0%, #ff7700 100%);
     animation: pulse 1.5s infinite;
     transform: scale(1);
+  }
+  
+  .playing-bars {
+    display: flex;
+    gap: 2px;
+    align-items: end;
+  }
+  
+  .playing-bars div {
+    width: 3px;
+    background: currentColor;
+    border-radius: 2px;
+    animation: wave 1.2s ease-in-out infinite;
+  }
+  
+  .playing-bars div:nth-child(1) { height: 8px; animation-delay: 0s; }
+  .playing-bars div:nth-child(2) { height: 12px; animation-delay: 0.2s; }
+  .playing-bars div:nth-child(3) { height: 6px; animation-delay: 0.4s; }
+  
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
   }
   
   @keyframes pulse {
@@ -712,135 +836,235 @@
     100% { opacity: 1; }
   }
   
-  .guess-input-section {
-    display: flex;
-    gap: 0.5rem;
+  .guess-row input {
     flex: 1;
-    align-items: center;
-  }
-  
-  .guess-input-section input {
-    flex: 1;
-    padding: 0.75rem;
-    border: 2px solid #ddd;
-    border-radius: 8px;
+    background: #0a0a0a;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    color: #ffffff;
     font-size: 1rem;
+    transition: all 0.3s ease;
   }
   
-  .guess-input-section input:disabled {
-    background: #f5f5f5;
-    color: #999;
+  .guess-row input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: #111;
+  }
+  
+  .guess-row input:disabled {
+    background: #1a1a1a;
+    color: #666;
     cursor: not-allowed;
   }
   
-  .guess-input-section input.locked {
-    background: #f5f5f5;
-    border-color: #ddd;
-    color: #333;
-    font-weight: bold;
+  .guess-row input.locked {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #a0a0a0;
+    font-weight: 600;
   }
   
-  .guess-input-section input.pending {
-    background: #f5f5f5;
-    color: #999;
+  .action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+  
+  .submit-btn, .skip-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    transform: scale(0.95);
+    min-width: 80px;
   }
   
   .submit-btn {
-    background: #28a745;
-    color: white;
-    border: none;
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    min-width: 60px;
-    transition: all 0.3s ease;
-    transform: scale(0.9);
+    background: #333;
+    color: #666;
   }
   
   .submit-btn.enabled {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
     transform: scale(1);
-    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-  }
-  
-  .submit-btn:disabled {
-    background: #999;
-    cursor: not-allowed;
-    transform: scale(0.9);
-    box-shadow: none;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
   }
   
   .skip-btn {
-    background: #1a365d;
-    color: white;
-    border: none;
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    min-width: 60px;
-    transition: all 0.3s ease;
-    transform: scale(0.9);
+    background: #333;
+    color: #666;
   }
   
   .skip-btn.enabled {
+    background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
+    color: white;
     transform: scale(1);
-    box-shadow: 0 2px 4px rgba(26, 54, 93, 0.3);
-  }
-  
-  .skip-btn:disabled {
-    background: #999;
-    cursor: not-allowed;
-    transform: scale(0.9);
-    box-shadow: none;
+    box-shadow: 0 4px 15px rgba(26, 54, 93, 0.3);
   }
   
   .x-btn {
     background: #ff6b6b;
     color: white;
     border: none;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
+    padding: 0.75rem;
+    border-radius: 12px;
     cursor: not-allowed;
-    font-size: 1rem;
-    min-width: 70px;
+    min-width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .placeholder-btns {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
   
   .placeholder-btn {
-    background: #f5f5f5;
-    color: #999;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    min-width: 70px;
+    background: #1a1a1a;
+    color: #666;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    min-width: 80px;
     text-align: center;
   }
   
   .hint {
-    margin: 1rem 0;
-    padding: 1rem;
-    background: #f0f8ff;
-    border-radius: 8px;
-    font-weight: bold;
-    color: #333;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #a0a0a0;
+    font-weight: 600;
+  }
+  
+  .error-banner {
+    background: #2a1a1a;
+    border: 1px solid #ff6b6b;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ff6b6b;
+  }
+  
+  .close-error {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #ff6b6b;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .logout-button {
+    background: transparent;
+    color: #a0a0a0;
+    border: 2px solid #333;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 0 auto;
+  }
+  
+  .logout-button:hover {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
   }
   
   .win-screen, .loss-screen {
-    background: #f9f9f9;
-    border-radius: 12px;
-    margin: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    text-align: center;
   }
   
-  .win-screen {
-    border: 3px solid #1db954;
+  .result-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
   }
   
-  .loss-screen {
-    border: 3px solid #ff6b6b;
+  .win-screen h1, .loss-screen h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .result-text {
+    color: #a0a0a0;
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .song-info {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    max-width: 400px;
+    width: 100%;
+  }
+  
+  .song-info h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: #ffffff;
+  }
+  
+  .song-info p {
+    color: #a0a0a0;
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  
+  .share-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  
+  .share-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
   }
 </style>
