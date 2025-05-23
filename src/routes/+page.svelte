@@ -278,19 +278,19 @@
       currentAttempt = attemptIndex + 2;
     }
   }
+
+  function stopClip() {
+    if (player && playingClipNumber > 0) {
+        player.pause();
+        playingClipNumber = 0;
+    }
+    }
   
   async function playClip(clipNumber: number) {
     if (!player || !deviceId || !currentGame) {
       console.error('Cannot play clip: missing player, device ID, or game data');
       return;
     }
-
-    function stopClip() {
-  if (player && playingClipNumber > 0) {
-    player.pause();
-    playingClipNumber = 0;
-  }
-}
     
     try {
       playingClipNumber = clipNumber;
@@ -358,9 +358,9 @@
   }
   
   function isPlayButtonEnabled(index: number): boolean {
-  // Enable if component is active or locked (previously unlocked)
-    return guessStates[index] === 'active' || guessStates[index] === 'locked';
-    }
+  // Enable if component is active or locked AND player is ready
+  return (guessStates[index] === 'active' || guessStates[index] === 'locked') && player && deviceId;
+}
   
   function isPlayButtonPlaying(index: number): boolean {
     // Only the specific button that was clicked should show playing state
