@@ -43,8 +43,14 @@
           day: 'numeric' 
         });
       } else {
-        const attemptsLeft = 4 - currentAttempt + 1;
-        tickerMessage = `${attemptsLeft} attempts left`;
+        // Show hint or attempts left based on current attempt
+        const hintText = getHintText();
+        if (hintText) {
+          tickerMessage = hintText;
+        } else {
+          const attemptsLeft = 4 - currentAttempt + 1;
+          tickerMessage = `${attemptsLeft} attempts left`;
+        }
       }
       showDate = !showDate;
     }
@@ -271,7 +277,6 @@
   }
   
   function getHintText(): string {
-    if (currentAttempt === 1) return '';
     if (currentAttempt === 2) return `Guitarist: ${currentSolo?.guitarist}`;
     if (currentAttempt === 3) return `Artist: ${currentSolo?.artist}`;
     if (currentAttempt === 4) return `Hint: ${currentSolo?.hint}`;
@@ -427,9 +432,9 @@
               <button 
                 class="play-btn"
                 on:click={() => playClip(i + 1)}
-                disabled={isPlaying || !deviceId}
+                disabled={isPlaying || !deviceId || guessStates[i] !== 'active'}
                 class:playing={isPlaying}
-                class:enabled={!isPlaying && deviceId}
+                class:enabled={!isPlaying && deviceId && guessStates[i] === 'active'}
               >
                 {#if isPlaying}
                   <div class="playing-bars">
@@ -490,16 +495,6 @@
           </div>
         {/each}
       </div>
-      
-      <!-- Hint Display -->
-      {#if getHintText()}
-        <div class="hint">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/>
-          </svg>
-          {getHintText()}
-        </div>
-      {/if}
       
       <button class="logout-button" on:click={logout}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -762,8 +757,8 @@
     border-radius: 12px;
     padding: 1rem;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    transform: scale(0.95);
-    opacity: 0.6;
+    transform: scale(0.75);
+    opacity: 0.4;
   }
   
   .guess-component.active {
@@ -936,19 +931,6 @@
     font-size: 0.9rem;
     min-width: 70px;
     text-align: center;
-  }
-  
-  .hint {
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: #a0a0a0;
-    font-weight: 600;
   }
   
   .error-banner {
