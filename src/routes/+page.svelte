@@ -238,30 +238,28 @@
         errorMessage = 'Failed to initialize Spotify player';
       });
       
-      // Listen for player state changes to track actual playback
+      // Listen for player state changes - ONLY reset when we're sure playback stopped
       player.addListener('player_state_changed', (state) => {
         console.log('🎵 Player state changed:', state);
         
         if (!state) {
-          // No state means playback stopped
-          console.log('🛑 No player state - resetting button states');
+          // No state = definitely stopped
+          console.log('🛑 No player state - playback definitely stopped');
           resetAllButtonStates();
           return;
         }
         
         const { paused, loading, position, duration, track_window } = state;
         
-        console.log(`🎵 State: paused=${paused}, loading=${loading}, position=${position}, duration=${duration}`);
-        
-        if (paused) {
-          // Playback paused
-          console.log('⏸️ Playback paused - resetting button states');
+        // Only reset if we're absolutely sure playback has stopped
+        if (paused && !loading) {
+          console.log('⏸️ Playback paused and not loading - resetting buttons');
           resetAllButtonStates();
-        } else if (!loading && currentPlayingClip >= 0) {
-          // Playback is active and we know which clip initiated it
-          console.log(`🎶 Playback active for clip ${currentPlayingClip + 1}`);
-          updateButtonStateForPlayback(currentPlayingClip);
+        } else if (position === 0 && duration > 0 && !loading) {
+          console.log('🔄 Track at beginning and not loading - likely stopped');
+          resetAllButtonStates();
         }
+        // Otherwise, keep the button blue! Don't reset on loading states
       });
       
       gameStatus = 'playing';
@@ -278,13 +276,16 @@
   
   // Reset all button states when playback stops
   function resetAllButtonStates() {
+    console.log('🔄 Resetting all button states to green');
     playingClipStates = [false, false, false, false];
     currentPlayingClip = -1;
   }
   
-  // Update button state for active playback
-  function updateButtonStateForPlayback(clipIndex: number) {
+  // Set button to blue when playing
+  function setButtonPlaying(clipIndex: number) {
+    console.log(`🔵 Setting button ${clipIndex + 1} to blue (playing)`);
     playingClipStates = playingClipStates.map((_, i) => i === clipIndex);
+    currentPlayingClip = clipIndex;
   }
   
   async function handleGuess(attemptIndex: number) {
@@ -344,15 +345,9 @@
     
     console.log(`🎵 Play button ${clipNumber} clicked!`);
     
-    // Reset all button states first
-    resetAllButtonStates();
-    
-    // Set this button as playing immediately (optimistic update)
-    currentPlayingClip = clipIndex;
-    updateButtonStateForPlayback(clipIndex);
+    // INSTANTLY turn this button blue and keep it blue
+    setButtonPlaying(clipIndex);
     errorMessage = ''; // Clear any previous errors
-    
-    console.log(`🎯 Button ${clipNumber} set to playing (optimistic)`);
     
     // Try to play audio if Spotify is ready
     if (player && deviceId && currentGame && isPlayerReady) {
@@ -401,11 +396,11 @@
           endTime
         });
         
-        console.log('🎶 Playback started successfully');
+        console.log('🎶 Playback command sent successfully - button stays blue until Spotify stops');
         
       } catch (error) {
         console.error('Failed to play clip:', error);
-        // Reset button state on error
+        // Only reset on actual error
         resetAllButtonStates();
         
         if (error instanceof Error && error.message.includes('fetch')) {
@@ -415,8 +410,8 @@
         }
       }
     } else {
-      console.log('Spotify not ready, resetting optimistic state');
-      resetAllButtonStates();
+      console.log('Spotify not ready - but keeping button blue as visual feedback');
+      // Keep button blue even if Spotify isn't ready - shows user clicked
     }
   }
   
