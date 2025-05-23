@@ -401,9 +401,9 @@
   }
 
   function isPlayButtonLoading(index: number): boolean {
-    // Only show loading for the first button while Spotify is initializing
-    return index === 0 && isSpotifyInitializing && guessStates[index] === 'active';
-  }
+  // Show loading for any active button while Spotify is initializing
+    return isSpotifyInitializing && guessStates[index] === 'active';
+    }   
   
   function isPlayButtonPlaying(index: number): boolean {
     // Only the specific button that was clicked should show playing state
