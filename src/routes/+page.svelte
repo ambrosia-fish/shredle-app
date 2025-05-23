@@ -943,12 +943,11 @@
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
   }
   
-  .play-btn.playing {
+  .play-btn.enabled.playing,
+    .play-btn.playing {
     background: #8b5cf6 !important;
     color: white !important;
-    animation: pulse 1.5s infinite;
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
-  }
+    }
   
   .play-btn.loading {
     background: #555;
