@@ -343,7 +343,11 @@
   async function playClip(clipNumber: number) {
     const clipIndex = clipNumber - 1;
     
-    console.log(`Play button ${clipNumber} clicked!`);
+    console.log(`🎵 Play button ${clipNumber} clicked!`);
+    console.log('🔍 BEFORE - All button states:', playingClipStates);
+    console.log('🔍 BEFORE - Button clickable?', isPlayButtonClickable(clipIndex));
+    console.log('🔍 BEFORE - Button loading?', isPlayButtonLoading(clipIndex));
+    console.log('🔍 BEFORE - Guess states:', guessStates);
     
     // Clear any existing timeouts and reset all button states first
     clearAllClipTimeouts();
@@ -352,18 +356,44 @@
     playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? true : false);
     errorMessage = ''; // Clear any previous errors
     
-    console.log(`Button ${clipNumber} state set to playing:`, playingClipStates[clipIndex]);
+    console.log('🎯 AFTER STATE SET - All button states:', playingClipStates);
+    console.log('🎯 AFTER STATE SET - isPlayButtonPlaying result:', isPlayButtonPlaying(clipIndex));
+    
+    // Force Svelte reactivity
+    playingClipStates = [...playingClipStates];
+    
+    console.log('🔄 AFTER REACTIVITY FORCE - All button states:', playingClipStates);
+    
+    // Check DOM after a short delay
+    setTimeout(() => {
+      const buttons = document.querySelectorAll('.play-btn');
+      const button = buttons[clipIndex];
+      
+      console.log('🔍 DOM DEBUG for button', clipNumber + ':');
+      console.log('   - Button exists?', !!button);
+      console.log('   - Button className:', button?.className);
+      console.log('   - Has "playing" class?', button?.classList.contains('playing'));
+      console.log('   - Has "enabled" class?', button?.classList.contains('enabled'));
+      console.log('   - Computed background:', window.getComputedStyle(button).backgroundColor);
+      console.log('   - Computed color:', window.getComputedStyle(button).color);
+      console.log('   - All classes:', Array.from(button?.classList || []));
+      
+      // Check all buttons for comparison
+      buttons.forEach((btn, idx) => {
+        console.log(`   - Button ${idx + 1} classes:`, btn.className);
+      });
+    }, 100);
     
     // Get clip duration and set timeout to reset button state
     const clipDurationSeconds = getClipDuration(clipNumber);
     const clipDurationMs = clipDurationSeconds * 1000;
     
-    console.log(`Button ${clipNumber} will stay purple for ${clipDurationSeconds} seconds`);
+    console.log(`⏰ Button ${clipNumber} will stay purple for ${clipDurationSeconds} seconds`);
     
     // Set timeout to reset this specific button state
     const visualTimeout = setTimeout(() => {
       playingClipStates = playingClipStates.map((state, i) => i === clipIndex ? false : state);
-      console.log(`Button ${clipNumber} reset to normal state`);
+      console.log(`✅ Button ${clipNumber} reset to normal state`);
     }, clipDurationMs);
     
     clipTimeouts.push(visualTimeout);
@@ -923,13 +953,14 @@
     margin-bottom: 0.75rem;
   }
   
+  /* Base play button styles */
   .play-btn {
     width: 44px;
     height: 44px;
     border-radius: 50%;
     border: none;
-    background: #333;
-    color: #666;
+    background: #333 !important;
+    color: #666 !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -938,13 +969,14 @@
     flex-shrink: 0;
   }
   
+  /* Blue when enabled/clickable */
   .play-btn.enabled {
-    background: #007bff;
-    color: white;
+    background: #007bff !important;
+    color: white !important;
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
   }
   
-  .play-btn.enabled.playing,
+  /* PURPLE when playing - highest priority */
   .play-btn.playing {
     background: #8b5cf6 !important;
     color: white !important;
@@ -952,8 +984,10 @@
     box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
   }
   
+  /* Gray when loading */
   .play-btn.loading {
-    background: #555;
+    background: #555 !important;
+    color: #aaa !important;
     cursor: not-allowed;
   }
 
