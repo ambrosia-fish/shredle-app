@@ -423,16 +423,15 @@
     }
   }
   
-  function isPlayButtonEnabled(index: number): boolean {
-    // Enable for active and all previous (locked) components when player is ready
-    return (guessStates[index] === 'active' || guessStates[index] === 'locked') && 
-           isPlayerReady && !isSpotifyInitializing;
+  function isPlayButtonClickable(index: number): boolean {
+    // Button is clickable if it's in an active or locked guess component
+    return guessStates[index] === 'active' || guessStates[index] === 'locked';
   }
 
   function isPlayButtonLoading(index: number): boolean {
-  // Show loading for any active button while Spotify is initializing
+    // Show loading for the active button while Spotify is initializing
     return isSpotifyInitializing && guessStates[index] === 'active';
-    }   
+  }   
   
   function isPlayButtonPlaying(index: number): boolean {
     // Only THIS specific button shows playing state
@@ -582,9 +581,9 @@
               <button 
                 class="play-btn"
                 on:click={() => playClip(i + 1)}
-                disabled={!isPlayButtonEnabled(i) && !isPlayButtonLoading(i)}
+                disabled={isPlayButtonLoading(i) || !isPlayButtonClickable(i)}
                 class:playing={isPlayButtonPlaying(i)}
-                class:enabled={isPlayButtonEnabled(i)}
+                class:enabled={isPlayButtonClickable(i) && !isPlayButtonLoading(i)}
                 class:loading={isPlayButtonLoading(i)}
               >
                 {#if isPlayButtonLoading(i)}
