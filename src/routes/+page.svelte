@@ -309,19 +309,23 @@
   }
   
   async function playClip(clipNumber: number) {
+    // Set visual feedback immediately when button is clicked
+    clearAllClipTimeouts();
+    playingClipNumber = clipNumber;
+    errorMessage = ''; // Clear any previous errors
+    
     if (!player || !deviceId || !currentGame || !isPlayerReady) {
       console.error('Cannot play clip: missing player, device ID, game data, or player not ready');
+      // Keep visual state for a moment to show user the button was clicked
+      setTimeout(() => {
+        if (playingClipNumber === clipNumber) {
+          playingClipNumber = 0;
+        }
+      }, 1000);
       return;
     }
     
     try {
-      // Clear any existing timeouts and reset playing state
-      clearAllClipTimeouts();
-      
-      // Set playing state immediately for visual feedback
-      playingClipNumber = clipNumber;
-      errorMessage = ''; // Clear any previous errors
-      
       console.log(`Fetching latest solo data for clip ${clipNumber}...`);
       
       // Fetch fresh solo data from server each time
