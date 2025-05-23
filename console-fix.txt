@@ -1,0 +1,1 @@
+console.log(`Button ${clipNumber} will stay purple for ${clipDurationSeconds} seconds`);
