@@ -40,6 +40,11 @@
   // Ticker functionality
   let tickerInterval: number;
   let tickerIndex = 0;
+
+  $: if (isPlayerReady && !isSpotifyInitializing) {
+    // Force UI update when Spotify becomes ready
+    guessStates = [...guessStates];
+    }
   
   function getTickerMessages() {
     const messages = [];
