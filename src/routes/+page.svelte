@@ -18,7 +18,7 @@
   let player: any = null;
   let deviceId = '';
   let errorMessage = '';
-  let isPlaying = false;
+  let playingClipNumber = 0; // Track which specific clip is playing (0 = none)
   let isInitialized = false;
   let isProcessingCallback = false;
   
@@ -30,8 +30,9 @@
   let currentGuessInputs: string[] = ['', '', '', ''];
   let isSubmittingGuess = false;
   
-  // Track which hints have been shown for the first time
+  // Track which hints have been shown and the most recent hint
   let shownHints = new Set<string>();
+  let mostRecentHint = '';
   
   // Ticker functionality
   let tickerInterval: number;
@@ -50,54 +51,65 @@
         day: 'numeric' 
       }),
       isHint: false,
-      isNew: false
+      isNew: false,
+      isRecent: false
     });
     
     // Always include attempts left
-    const attemptsLeft = 4 - currentAttempt + 1;
+    const attemptsLeft = 5 - currentAttempt;
     messages.push({
       text: `${attemptsLeft} attempts left`,
       isHint: false,
-      isNew: false
+      isNew: false,
+      isRecent: false
     });
     
     // Add hints based on current attempt
     if (currentAttempt >= 2 && currentSolo?.guitarist) {
       const hintKey = 'guitarist';
+      const hintText = `Guitarist: ${currentSolo.guitarist}`;
       const isNewHint = !shownHints.has(hintKey);
       if (isNewHint) {
         shownHints.add(hintKey);
+        mostRecentHint = hintText;
       }
       messages.push({
-        text: `Guitarist: ${currentSolo.guitarist}`,
+        text: hintText,
         isHint: true,
-        isNew: isNewHint
+        isNew: isNewHint,
+        isRecent: mostRecentHint === hintText
       });
     }
     
     if (currentAttempt >= 3 && currentSolo?.artist) {
       const hintKey = 'artist';
+      const hintText = `Artist: ${currentSolo.artist}`;
       const isNewHint = !shownHints.has(hintKey);
       if (isNewHint) {
         shownHints.add(hintKey);
+        mostRecentHint = hintText;
       }
       messages.push({
-        text: `Artist: ${currentSolo.artist}`,
+        text: hintText,
         isHint: true,
-        isNew: isNewHint
+        isNew: isNewHint,
+        isRecent: mostRecentHint === hintText
       });
     }
     
     if (currentAttempt >= 4 && currentSolo?.hint) {
       const hintKey = 'hint';
+      const hintText = `Hint: ${currentSolo.hint}`;
       const isNewHint = !shownHints.has(hintKey);
       if (isNewHint) {
         shownHints.add(hintKey);
+        mostRecentHint = hintText;
       }
       messages.push({
-        text: `Hint: ${currentSolo.hint}`,
+        text: hintText,
         isHint: true,
-        isNew: isNewHint
+        isNew: isNewHint,
+        isRecent: mostRecentHint === hintText
       });
     }
     
@@ -112,7 +124,7 @@
       const currentMessage = messages[tickerIndex % messages.length];
       tickerMessage = currentMessage.text;
       tickerIsHint = currentMessage.isHint;
-      tickerIsNewHint = currentMessage.isNew;
+      tickerIsNewHint = currentMessage.isNew || currentMessage.isRecent;
       
       tickerIndex++;
     }
@@ -268,13 +280,13 @@
   }
   
   async function playClip(clipNumber: number) {
-    if (!player || !deviceId || !currentGame || isPlaying) {
-      console.error('Cannot play clip: missing player, device ID, or game data');
+    if (!player || !deviceId || !currentGame || playingClipNumber > 0) {
+      console.error('Cannot play clip: missing player, device ID, game data, or another clip is playing');
       return;
     }
     
     try {
-      isPlaying = true;
+      playingClipNumber = clipNumber;
       errorMessage = ''; // Clear any previous errors
       
       console.log(`Fetching latest solo data for clip ${clipNumber}...`);
@@ -324,7 +336,7 @@
       // Reset playing state after the clip duration
       const clipDuration = (endTime - startTime) * 1000;
       setTimeout(() => {
-        isPlaying = false;
+        playingClipNumber = 0;
       }, clipDuration + 500); // Add small buffer
       
     } catch (error) {
@@ -334,13 +346,18 @@
       } else {
         errorMessage = `Failed to play clip ${clipNumber}. Make sure Spotify is active and try again.`;
       }
-      isPlaying = false;
+      playingClipNumber = 0;
     }
   }
   
   function isPlayButtonEnabled(index: number): boolean {
-    // Enable if component is active or locked (previously unlocked)
-    return !isPlaying && deviceId && (guessStates[index] === 'active' || guessStates[index] === 'locked');
+    // Enable if component is active or locked (previously unlocked) AND we have device connection
+    return deviceId && (guessStates[index] === 'active' || guessStates[index] === 'locked');
+  }
+  
+  function isPlayButtonPlaying(index: number): boolean {
+    // Only the specific button that was clicked should show playing state
+    return playingClipNumber === (index + 1);
   }
 
   function clearError() {
@@ -370,7 +387,9 @@
     player = null;
     deviceId = '';
     errorMessage = '';
+    playingClipNumber = 0;
     shownHints = new Set();
+    mostRecentHint = '';
     stopTicker();
   }
 
@@ -482,11 +501,11 @@
               <button 
                 class="play-btn"
                 on:click={() => playClip(i + 1)}
-                disabled={!isPlayButtonEnabled(i)}
-                class:playing={isPlaying}
-                class:enabled={isPlayButtonEnabled(i)}
+                disabled={!isPlayButtonEnabled(i) || playingClipNumber > 0}
+                class:playing={isPlayButtonPlaying(i)}
+                class:enabled={isPlayButtonEnabled(i) && playingClipNumber === 0}
               >
-                {#if isPlaying}
+                {#if isPlayButtonPlaying(i)}
                   <div class="playing-bars">
                     <div></div>
                     <div></div>
