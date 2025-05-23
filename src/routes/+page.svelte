@@ -30,6 +30,9 @@
   let currentGuessInputs: string[] = ['', '', '', ''];
   let isSubmittingGuess = false;
   
+  // Track which hints have been shown for the first time
+  let shownHints = new Set<string>();
+  
   // Ticker functionality
   let tickerInterval: number;
   let tickerIndex = 0;
@@ -60,26 +63,41 @@
     
     // Add hints based on current attempt
     if (currentAttempt >= 2 && currentSolo?.guitarist) {
+      const hintKey = 'guitarist';
+      const isNewHint = !shownHints.has(hintKey);
+      if (isNewHint) {
+        shownHints.add(hintKey);
+      }
       messages.push({
         text: `Guitarist: ${currentSolo.guitarist}`,
         isHint: true,
-        isNew: currentAttempt === 2
+        isNew: isNewHint
       });
     }
     
     if (currentAttempt >= 3 && currentSolo?.artist) {
+      const hintKey = 'artist';
+      const isNewHint = !shownHints.has(hintKey);
+      if (isNewHint) {
+        shownHints.add(hintKey);
+      }
       messages.push({
         text: `Artist: ${currentSolo.artist}`,
         isHint: true,
-        isNew: currentAttempt === 3
+        isNew: isNewHint
       });
     }
     
     if (currentAttempt >= 4 && currentSolo?.hint) {
+      const hintKey = 'hint';
+      const isNewHint = !shownHints.has(hintKey);
+      if (isNewHint) {
+        shownHints.add(hintKey);
+      }
       messages.push({
         text: `Hint: ${currentSolo.hint}`,
         isHint: true,
-        isNew: currentAttempt === 4
+        isNew: isNewHint
       });
     }
     
@@ -352,6 +370,7 @@
     player = null;
     deviceId = '';
     errorMessage = '';
+    shownHints = new Set();
     stopTicker();
   }
 
@@ -446,21 +465,6 @@
         <div class="error-banner">
           <span>{errorMessage}</span>
           <button on:click={clearError} class="close-error">×</button>
-        </div>
-      {/if}
-      
-      <!-- Device Status -->
-      {#if deviceId}
-        <div class="device-status connected">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-          </svg>
-          Connected to Spotify
-        </div>
-      {:else}
-        <div class="device-status connecting">
-          <div class="connecting-spinner"></div>
-          Connecting to Spotify...
         </div>
       {/if}
       
@@ -755,16 +759,16 @@
   }
   
   .ticker.hint {
-    color: #fbbf24;
-    border-color: #fbbf24;
+    color: #a0a0a0;
+    border-color: #333;
   }
   
   .ticker.new-hint {
-    background: #1f2937;
-    color: #f59e0b;
-    border-color: #f59e0b;
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-    animation: fadeIn 0.5s ease-in-out, glow 2s ease-in-out;
+    background: #0d1a0d;
+    color: #1db954;
+    border-color: #1db954;
+    box-shadow: 0 0 20px rgba(29, 185, 84, 0.3);
+    animation: fadeIn 0.5s ease-in-out, spotifyGlow 2s ease-in-out;
   }
 
   @keyframes fadeIn {
@@ -772,42 +776,10 @@
     100% { opacity: 1; transform: translateY(0); }
   }
   
-  @keyframes glow {
-    0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.3); }
-    50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.6); }
-    100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
-  }
-
-  .device-status {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 20px;
-    margin-bottom: 2rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-  
-  .device-status.connected {
-    background: #1db954;
-    color: white;
-  }
-  
-  .device-status.connecting {
-    background: #1a1a1a;
-    color: #a0a0a0;
-    border: 1px solid #333;
-  }
-  
-  .connecting-spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid #333;
-    border-top: 2px solid #a0a0a0;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  @keyframes spotifyGlow {
+    0% { box-shadow: 0 0 5px rgba(29, 185, 84, 0.3); }
+    50% { box-shadow: 0 0 25px rgba(29, 185, 84, 0.6); }
+    100% { box-shadow: 0 0 10px rgba(29, 185, 84, 0.3); }
   }
   
   .guess-components {
