@@ -50,20 +50,6 @@
       </div>
     </div>
     
-    <div class="notify-section">
-      <p class="notify-text">Want to be notified when we launch?</p>
-      <div class="email-signup">
-        <input 
-          type="email" 
-          placeholder="Enter your email" 
-          class="email-input"
-        />
-        <button class="notify-btn">
-          Notify Me
-        </button>
-      </div>
-    </div>
-    
     <footer class="footer">
       <p>&copy; 2025 Shredle. Rock on! 🤘</p>
     </footer>
@@ -189,65 +175,6 @@
     font-weight: 500;
   }
   
-  .notify-section {
-    max-width: 400px;
-    width: 100%;
-  }
-  
-  .notify-text {
-    color: #a0a0a0;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-  }
-  
-  .email-signup {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  
-  .email-input {
-    flex: 1;
-    min-width: 200px;
-    background: #1a1a1a;
-    border: 2px solid #333;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    color: #ffffff;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-  }
-  
-  .email-input:focus {
-    outline: none;
-    border-color: #6366f1;
-    background: #111;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-  }
-  
-  .email-input::placeholder {
-    color: #666;
-  }
-  
-  .notify-btn {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-  }
-  
-  .notify-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-  }
-  
   .footer {
     margin-top: 3rem;
   }
@@ -269,14 +196,6 @@
     
     .tagline {
       font-size: 1.3rem;
-    }
-    
-    .email-signup {
-      flex-direction: column;
-    }
-    
-    .email-input {
-      min-width: auto;
     }
   }
 </style>
